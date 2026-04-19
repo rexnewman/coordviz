@@ -10,14 +10,15 @@ import { ecefToLla, llaToEcef } from '../math/transforms'
 interface EntityMeshProps {
   type: EntityType
   ecef: Vec3
+  modelScale?: number
   onPositionChange: (ecef: Vec3) => void
   onDragStart: () => void
   onDragEnd: () => void
 }
 
-export function EntityMesh({ type, ecef, onPositionChange, onDragStart, onDragEnd }: EntityMeshProps) {
+export function EntityMesh({ type, ecef, modelScale = 1, onPositionChange, onDragStart, onDragEnd }: EntityMeshProps) {
   const pos = ecefToThree(ecef)
-  const scale = 0.15
+  const scale = 0.15 * modelScale
 
   const { camera, gl } = useThree()
   const raycaster = useRef(new Raycaster())

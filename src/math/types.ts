@@ -50,8 +50,9 @@ export interface AppState {
   /** UTC epoch as JS Date timestamp (ms) */
   epochMs:       number
   showFrames:    Record<CoordFrame, boolean>
-  axisScale:     number
-  earthOpacity:  number
-  sunIntensity:  number
-  timeOfDay:     number
+  entityScale:    number
+  axisScale:      number
+  earthOpacity:   number
+  sunIntensity:   number
+  showAngleArcs:  boolean
 }

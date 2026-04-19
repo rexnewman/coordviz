@@ -2,7 +2,12 @@ import { Suspense, useState, useCallback, useRef } from 'react'
 import { Canvas } from '@react-three/fiber'
 import { CoordFrame, EntityType } from './math/types'
 import type { AppState, Vec3 } from './math/types'
+import { Line } from '@react-three/drei'
 import { llaToEcef, ecefToLla } from './math/transforms'
+import { ecefToThree } from './math/wgs84'
+import { AngleArcs } from './scene/AngleArcs'
+import { AxisLabels } from './scene/AxisLabels'
+import type { AxisEntry } from './scene/AxisLabels'
 import { EarthMesh } from './scene/EarthMesh'
 import { EntityMesh } from './scene/EntityMesh'
 import { FrameAxes } from './scene/FrameAxes'
@@ -28,10 +33,11 @@ const INITIAL_STATE: AppState = {
     [CoordFrame.NED]:  true,
     [CoordFrame.Body]: true,
   },
+  entityScale: 1,
   axisScale: 1.5,
   earthOpacity: 1,
-  sunIntensity: 1.2,
-  timeOfDay:    12,
+  sunIntensity:   1.2,
+  showAngleArcs:  false,
 }
 
 const FRAME_LABELS: Partial<Record<CoordFrame, string>> = {
@@ -75,10 +81,16 @@ export default function App() {
   const onPositionChange = useCallback((ecef: Vec3) => onChange({ ecef }), [onChange])
 
   const g = gmst(state.epochMs)
-  const axisLen = state.axisScale
 
   const lla = ecefToLla(state.ecef)
   const surfaceEcef: Vec3 = llaToEcef({ lat: lla.lat, lon: lla.lon, alt: 0 })
+
+  // Center-origin axes (ECI/ECEF) extend axisScale units beyond entity altitude.
+  // Local axes (ENU/NED/Body) use axisScale directly.
+  const entityPos3 = ecefToThree(state.ecef)
+  const entityDist = Math.sqrt(entityPos3[0]**2 + entityPos3[1]**2 + entityPos3[2]**2)
+  const centerAxisLen = entityDist + state.axisScale
+  const localAxisLen  = state.axisScale
 
   const frameOrigin = (frame: CoordFrame): Vec3 => {
     if (frame === CoordFrame.ECI || frame === CoordFrame.ECEF) return ZERO
@@ -87,9 +99,10 @@ export default function App() {
   }
 
   // Sun position in Three.js world space.
-  // At timeOfDay=12 the sun is directly over the entity's meridian.
-  // Each hour shifts the sub-solar longitude 15° west (Earth rotates east).
-  const subSolarLon = (lla.lon - (state.timeOfDay - 12) * 15) * (Math.PI / 180)
+  // At noon UTC the sun is near the prime meridian; each hour shifts 15° west.
+  const d = new Date(state.epochMs)
+  const timeOfDay = d.getUTCHours() + d.getUTCMinutes() / 60 + d.getUTCSeconds() / 3600
+  const subSolarLon = (lla.lon - (timeOfDay - 12) * 15) * (Math.PI / 180)
   const SUN_DIST = 30
   const sunPosition: [number, number, number] = [
     Math.sin(subSolarLon) * SUN_DIST,  // Three.js X = ECEF Y
@@ -112,6 +125,7 @@ export default function App() {
         <EntityMesh
           type={state.entityType}
           ecef={state.ecef}
+          modelScale={state.entityScale}
           onPositionChange={onPositionChange}
           onDragStart={onDragStart}
           onDragEnd={onDragEnd}
@@ -120,6 +134,7 @@ export default function App() {
         {/* Reference frame axes */}
         {(Object.keys(FRAME_LABELS) as CoordFrame[]).map(frame => {
           if (!state.showFrames[frame]) return null
+          const isCenterFrame = frame === CoordFrame.ECI || frame === CoordFrame.ECEF
           const rot = frameRotationInEcef(
             frame as 'ECI' | 'ECEF' | 'LLA' | 'ENU' | 'NED',
             state.ecef,
@@ -130,7 +145,7 @@ export default function App() {
               key={frame}
               rotation={rot}
               originEcef={frameOrigin(frame)}
-              length={axisLen}
+              length={isCenterFrame ? centerAxisLen : localAxisLen}
             />
           )
         })}
@@ -147,9 +162,62 @@ export default function App() {
               state.attitude.yaw,
             )}
             originEcef={state.ecef}
-            length={axisLen * 1.3}
+            length={localAxisLen * 1.3}
             opacity={0.75}
           />
+        )}
+
+        {/* Axis labels — rendered once across all frames for coincidence deconfliction */}
+        {(() => {
+          const entries: AxisEntry[] = []
+          ;(Object.keys(FRAME_LABELS) as CoordFrame[]).forEach(frame => {
+            if (!state.showFrames[frame]) return
+            const isCenterFrame = frame === CoordFrame.ECI || frame === CoordFrame.ECEF
+            entries.push({
+              label: frame,
+              rotation: frameRotationInEcef(
+                frame as 'ECI' | 'ECEF' | 'LLA' | 'ENU' | 'NED',
+                state.ecef,
+                g,
+              ),
+              originEcef: frameOrigin(frame),
+              length: isCenterFrame ? centerAxisLen : localAxisLen,
+            })
+          })
+          if (state.showFrames[CoordFrame.Body]) {
+            entries.push({
+              label: 'Body',
+              rotation: bodyRotationInEcef(
+                state.attitudeFrame as 'ECI' | 'ECEF' | 'LLA' | 'ENU' | 'NED',
+                state.ecef, g,
+                state.attitude.roll, state.attitude.pitch, state.attitude.yaw,
+              ),
+              originEcef: state.ecef,
+              length: localAxisLen * 1.3,
+              opacity: 0.75,
+            })
+          }
+          return <AxisLabels axes={entries} />
+        })()}
+
+        {/* Sub-satellite (nadir) point */}
+        <Line
+          points={[entityPos3, ecefToThree(surfaceEcef)]}
+          color="#aaaacc"
+          lineWidth={1}
+          opacity={0.5}
+          transparent
+          dashed
+          dashSize={0.15}
+          gapSize={0.1}
+        />
+        <mesh position={ecefToThree(surfaceEcef)}>
+          <sphereGeometry args={[0.055, 12, 12]} />
+          <meshBasicMaterial color="#ccccff" />
+        </mesh>
+        {/* Angle arcs: λ, φ, θ */}
+        {state.showAngleArcs && (
+          <AngleArcs ecef={state.ecef} gmstRad={g} />
         )}
       </Canvas>
 

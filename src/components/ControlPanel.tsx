@@ -1,4 +1,4 @@
-import { useRef } from 'react'
+import { useRef, useEffect } from 'react'
 import { useControls, folder, button } from 'leva'
 import { CoordFrame, EntityType } from '../math/types'
 import type { AppState, Vec3 } from '../math/types'
@@ -103,8 +103,63 @@ export function ControlPanel({ state, onChange }: ControlPanelProps) {
         options: [CoordFrame.LLA, CoordFrame.ECEF, CoordFrame.ECI, CoordFrame.ENU, CoordFrame.NED],
         onChange: (v: CoordFrame) => onChange({ inputFrame: v }),
       },
+      'Model scale': {
+        value: state.entityScale,
+        min: 0.1, max: 10, step: 0.1,
+        onChange: (v: number) => onChange({ entityScale: v }),
+      },
     }),
 
+    Attitude: folder({
+      'Parent frame': {
+        value: state.attitudeFrame,
+        options: [CoordFrame.ECI, CoordFrame.ECEF, CoordFrame.ENU, CoordFrame.NED],
+        onChange: (v: CoordFrame) => onChange({ attitudeFrame: v }),
+      },
+      'Roll (°)': {
+        value: state.attitude.roll,
+        min: -180, max: 180, step: 1,
+        onChange: (v: number) => onChange({ attitude: { ...stateRef.current.attitude, roll: v } }),
+      },
+      'Pitch (°)': {
+        value: state.attitude.pitch,
+        min: -90, max: 90, step: 1,
+        onChange: (v: number) => onChange({ attitude: { ...stateRef.current.attitude, pitch: v } }),
+      },
+      'Yaw (°)': {
+        value: state.attitude.yaw,
+        min: -180, max: 180, step: 1,
+        onChange: (v: number) => onChange({ attitude: { ...stateRef.current.attitude, yaw: v } }),
+      },
+    }),
+
+    Display: folder({
+      'Show ECI':  { value: state.showFrames[CoordFrame.ECI],  onChange: (v: boolean) => onChange({ showFrames: { ...stateRef.current.showFrames, [CoordFrame.ECI]: v } }) },
+      'Show ECEF': { value: state.showFrames[CoordFrame.ECEF], onChange: (v: boolean) => onChange({ showFrames: { ...stateRef.current.showFrames, [CoordFrame.ECEF]: v } }) },
+      'Show LLA':  { value: state.showFrames[CoordFrame.LLA],  onChange: (v: boolean) => onChange({ showFrames: { ...stateRef.current.showFrames, [CoordFrame.LLA]: v } }) },
+      'Show ENU':  { value: state.showFrames[CoordFrame.ENU],  onChange: (v: boolean) => onChange({ showFrames: { ...stateRef.current.showFrames, [CoordFrame.ENU]: v } }) },
+      'Show NED':  { value: state.showFrames[CoordFrame.NED],  onChange: (v: boolean) => onChange({ showFrames: { ...stateRef.current.showFrames, [CoordFrame.NED]: v } }) },
+      'Show Body': { value: state.showFrames[CoordFrame.Body], onChange: (v: boolean) => onChange({ showFrames: { ...stateRef.current.showFrames, [CoordFrame.Body]: v } }) },
+      'Show angle arcs': { value: state.showAngleArcs, onChange: (v: boolean) => onChange({ showAngleArcs: v }) },
+      'Axis scale': {
+        value: state.axisScale,
+        min: 0.2, max: 5, step: 0.1,
+        onChange: (v: number) => onChange({ axisScale: v }),
+      },
+      'Earth opacity': {
+        value: state.earthOpacity,
+        min: 0, max: 1, step: 0.01,
+        onChange: (v: number) => onChange({ earthOpacity: v }),
+      },
+      'Sun intensity': {
+        value: state.sunIntensity,
+        min: 0, max: 4, step: 0.05,
+        onChange: (v: number) => onChange({ sunIntensity: v }),
+      },
+    }),
+  })
+
+  const [, setPosRaw] = useControls(() => ({
     Position: folder({
       pos_0: {
         label: labels0,
@@ -137,72 +192,73 @@ export function ControlPanel({ state, onChange }: ControlPanelProps) {
         },
       },
     }),
+  }))
+  const setPos = setPosRaw as (v: Record<string, unknown>) => void
 
-    Attitude: folder({
-      'Parent frame': {
-        value: state.attitudeFrame,
-        options: [CoordFrame.ECI, CoordFrame.ECEF, CoordFrame.ENU, CoordFrame.NED],
-        onChange: (v: CoordFrame) => onChange({ attitudeFrame: v }),
-      },
-      'Roll (°)': {
-        value: state.attitude.roll,
-        min: -180, max: 180, step: 1,
-        onChange: (v: number) => onChange({ attitude: { ...stateRef.current.attitude, roll: v } }),
-      },
-      'Pitch (°)': {
-        value: state.attitude.pitch,
-        min: -90, max: 90, step: 1,
-        onChange: (v: number) => onChange({ attitude: { ...stateRef.current.attitude, pitch: v } }),
-      },
-      'Yaw (°)': {
-        value: state.attitude.yaw,
-        min: -180, max: 180, step: 1,
-        onChange: (v: number) => onChange({ attitude: { ...stateRef.current.attitude, yaw: v } }),
-      },
-    }),
+  useEffect(() => {
+    const s = stateRef.current
+    const disp = ecefToDisplay(s.inputFrame, s.ecef, s.epochMs)
+    setPos({ pos_0: disp[0], pos_1: disp[1], pos_2: disp[2] })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.ecef, state.inputFrame, state.epochMs])
 
+  // Derive time-of-day (UTC hours) from epoch for display
+  const epochToTod = (ms: number) => {
+    const d = new Date(ms)
+    return d.getUTCHours() + d.getUTCMinutes() / 60 + d.getUTCSeconds() / 3600
+  }
+  const epochToIso = (ms: number) => new Date(ms).toISOString().slice(0, 19)
+  const epochToGmstDeg = (ms: number) => +(gmst(ms) * 180 / Math.PI).toFixed(3)
+
+  const [, setTimeRaw] = useControls(() => ({
     Time: folder({
-      'Epoch (ms UTC)': {
-        value: state.epochMs,
-        step: 60_000,
-        onChange: (v: number) => onChange({ epochMs: v }),
+      'UTC datetime': {
+        value: epochToIso(state.epochMs),
+        onChange: (v: string) => {
+          if (v.length < 19) return
+          const ms = new Date(v.endsWith('Z') ? v : v + 'Z').getTime()
+          if (!isNaN(ms)) onChange({ epochMs: ms })
+        },
       },
-      'GMST (°)': {
-        value: (gmst(state.epochMs) * 180 / Math.PI).toFixed(3),
-        editable: false,
+      'θ GMST (°)': {
+        value: epochToGmstDeg(state.epochMs),
+        min: 0, max: 360, step: 0.01,
+        onChange: (v: number) => {
+          const targetRad = v * Math.PI / 180
+          const s = stateRef.current
+          const curGmst = gmst(s.epochMs)
+          let delta = targetRad - curGmst
+          while (delta >  Math.PI) delta -= 2 * Math.PI
+          while (delta < -Math.PI) delta += 2 * Math.PI
+          // GMST rate ≈ one revolution per sidereal day
+          const deltaMs = delta * (86_164_090.5 / (2 * Math.PI))
+          onChange({ epochMs: s.epochMs + deltaMs })
+        },
+      },
+      'Time of day (h)': {
+        value: epochToTod(state.epochMs),
+        min: 0, max: 24, step: 0.01,
+        onChange: (v: number) => {
+          const s = stateRef.current
+          const d = new Date(s.epochMs)
+          const midnight = Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate())
+          onChange({ epochMs: midnight + v * 3_600_000 })
+        },
       },
       'Set to now': button(() => onChange({ epochMs: Date.now() })),
     }),
+  }))
+  // Leva doesn't infer flat keys through folder() — cast to allow programmatic updates
+  const setTime = setTimeRaw as (v: Record<string, unknown>) => void
 
-    Display: folder({
-      'Show ECI':  { value: state.showFrames[CoordFrame.ECI],  onChange: (v: boolean) => onChange({ showFrames: { ...stateRef.current.showFrames, [CoordFrame.ECI]: v } }) },
-      'Show ECEF': { value: state.showFrames[CoordFrame.ECEF], onChange: (v: boolean) => onChange({ showFrames: { ...stateRef.current.showFrames, [CoordFrame.ECEF]: v } }) },
-      'Show LLA':  { value: state.showFrames[CoordFrame.LLA],  onChange: (v: boolean) => onChange({ showFrames: { ...stateRef.current.showFrames, [CoordFrame.LLA]: v } }) },
-      'Show ENU':  { value: state.showFrames[CoordFrame.ENU],  onChange: (v: boolean) => onChange({ showFrames: { ...stateRef.current.showFrames, [CoordFrame.ENU]: v } }) },
-      'Show NED':  { value: state.showFrames[CoordFrame.NED],  onChange: (v: boolean) => onChange({ showFrames: { ...stateRef.current.showFrames, [CoordFrame.NED]: v } }) },
-      'Show Body': { value: state.showFrames[CoordFrame.Body], onChange: (v: boolean) => onChange({ showFrames: { ...stateRef.current.showFrames, [CoordFrame.Body]: v } }) },
-      'Axis scale': {
-        value: state.axisScale,
-        min: 0.2, max: 5, step: 0.1,
-        onChange: (v: number) => onChange({ axisScale: v }),
-      },
-      'Earth opacity': {
-        value: state.earthOpacity,
-        min: 0, max: 1, step: 0.01,
-        onChange: (v: number) => onChange({ earthOpacity: v }),
-      },
-      'Sun intensity': {
-        value: state.sunIntensity,
-        min: 0, max: 4, step: 0.05,
-        onChange: (v: number) => onChange({ sunIntensity: v }),
-      },
-      'Time of day (h)': {
-        value: state.timeOfDay,
-        min: 0, max: 24, step: 0.1,
-        onChange: (v: number) => onChange({ timeOfDay: v }),
-      },
-    }),
-  })
+  useEffect(() => {
+    setTime({
+      'UTC datetime': epochToIso(state.epochMs),
+      'θ GMST (°)':   epochToGmstDeg(state.epochMs),
+      'Time of day (h)': epochToTod(state.epochMs),
+    })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.epochMs])
 
   return null
 }
