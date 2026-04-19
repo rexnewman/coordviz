@@ -110,29 +110,6 @@ export function ControlPanel({ state, onChange }: ControlPanelProps) {
       },
     }),
 
-    Attitude: folder({
-      'Parent frame': {
-        value: state.attitudeFrame,
-        options: [CoordFrame.ECI, CoordFrame.ECEF, CoordFrame.ENU, CoordFrame.NED],
-        onChange: (v: CoordFrame) => onChange({ attitudeFrame: v }),
-      },
-      'Roll (°)': {
-        value: state.attitude.roll,
-        min: -180, max: 180, step: 1,
-        onChange: (v: number) => onChange({ attitude: { ...stateRef.current.attitude, roll: v } }),
-      },
-      'Pitch (°)': {
-        value: state.attitude.pitch,
-        min: -90, max: 90, step: 1,
-        onChange: (v: number) => onChange({ attitude: { ...stateRef.current.attitude, pitch: v } }),
-      },
-      'Yaw (°)': {
-        value: state.attitude.yaw,
-        min: -180, max: 180, step: 1,
-        onChange: (v: number) => onChange({ attitude: { ...stateRef.current.attitude, yaw: v } }),
-      },
-    }),
-
     Display: folder({
       'Show ECI':  { value: state.showFrames[CoordFrame.ECI],  onChange: (v: boolean) => onChange({ showFrames: { ...stateRef.current.showFrames, [CoordFrame.ECI]: v } }) },
       'Show ECEF': { value: state.showFrames[CoordFrame.ECEF], onChange: (v: boolean) => onChange({ showFrames: { ...stateRef.current.showFrames, [CoordFrame.ECEF]: v } }) },
@@ -201,6 +178,41 @@ export function ControlPanel({ state, onChange }: ControlPanelProps) {
     setPos({ pos_0: disp[0], pos_1: disp[1], pos_2: disp[2] })
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state.ecef, state.inputFrame, state.epochMs])
+
+  const [, setAttRaw] = useControls(() => ({
+    Attitude: folder({
+      'Parent frame': {
+        value: state.attitudeFrame,
+        options: [CoordFrame.ECI, CoordFrame.ECEF, CoordFrame.ENU, CoordFrame.NED],
+        onChange: (v: CoordFrame) => onChange({ attitudeFrame: v }),
+      },
+      'Roll (°)': {
+        value: state.attitude.roll,
+        min: -180, max: 180, step: 0.1,
+        onChange: (v: number) => onChange({ attitude: { ...stateRef.current.attitude, roll: v } }),
+      },
+      'Pitch (°)': {
+        value: state.attitude.pitch,
+        min: -90, max: 90, step: 0.1,
+        onChange: (v: number) => onChange({ attitude: { ...stateRef.current.attitude, pitch: v } }),
+      },
+      'Yaw (°)': {
+        value: state.attitude.yaw,
+        min: -180, max: 180, step: 0.1,
+        onChange: (v: number) => onChange({ attitude: { ...stateRef.current.attitude, yaw: v } }),
+      },
+    }),
+  }))
+  const setAtt = setAttRaw as (v: Record<string, unknown>) => void
+
+  useEffect(() => {
+    setAtt({
+      'Roll (°)':  state.attitude.roll,
+      'Pitch (°)': state.attitude.pitch,
+      'Yaw (°)':   state.attitude.yaw,
+    })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.attitude])
 
   // Derive time-of-day (UTC hours) from epoch for display
   const epochToTod = (ms: number) => {

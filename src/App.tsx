@@ -37,7 +37,7 @@ const INITIAL_STATE: AppState = {
   axisScale: 1.5,
   earthOpacity: 1,
   sunIntensity:   1.2,
-  showAngleArcs:  false,
+  showAngleArcs:  true,
 }
 
 const FRAME_LABELS: Partial<Record<CoordFrame, string>> = {
@@ -78,7 +78,11 @@ export default function App() {
     setOrbitEnabled(true)
     setPanelKey(k => k + 1)   // remount ControlPanel with updated initial values
   }, [])
-  const onPositionChange = useCallback((ecef: Vec3) => onChange({ ecef }), [onChange])
+  const onPositionChange  = useCallback((ecef: Vec3) => onChange({ ecef }), [onChange])
+  const onAttitudeChange  = useCallback(
+    (attitude: AppState['attitude']) => onChange({ attitude }),
+    [onChange],
+  )
 
   const g = gmst(state.epochMs)
 
@@ -111,7 +115,9 @@ export default function App() {
   ]
 
   return (
-    <div style={{ width: '100vw', height: '100vh', position: 'relative', background: '#0a0a0f' }}>
+    // onContextMenu suppresses the browser right-click menu so right-drag works
+    <div style={{ width: '100vw', height: '100vh', position: 'relative', background: '#0a0a0f' }}
+         onContextMenu={e => e.preventDefault()}>
       {/* 3D viewport */}
       <Canvas
         camera={{ position: [0, 0, 18], fov: 45, near: 0.01, far: 200 }}
@@ -126,7 +132,14 @@ export default function App() {
           type={state.entityType}
           ecef={state.ecef}
           modelScale={state.entityScale}
+          attitude={state.attitude}
+          bodyRotation={bodyRotationInEcef(
+            state.attitudeFrame as 'ECI' | 'ECEF' | 'LLA' | 'ENU' | 'NED',
+            state.ecef, g,
+            state.attitude.roll, state.attitude.pitch, state.attitude.yaw,
+          )}
           onPositionChange={onPositionChange}
+          onAttitudeChange={onAttitudeChange}
           onDragStart={onDragStart}
           onDragEnd={onDragEnd}
         />

@@ -1,4 +1,5 @@
 import { OrbitControls, Stars } from '@react-three/drei'
+import { MOUSE } from 'three'
 
 interface SceneSetupProps {
   sunIntensity?: number
@@ -21,6 +22,7 @@ export function SceneSetup({ sunIntensity = 1.2, sunPosition = [20, 10, 10], orb
         minDistance={2}
         maxDistance={40}
         enablePan={false}
+        mouseButtons={{ LEFT: MOUSE.ROTATE, MIDDLE: MOUSE.DOLLY, RIGHT: MOUSE.ROTATE }}
       />
     </>
   )

@@ -1,6 +1,6 @@
-import { useMemo, useEffect } from 'react'
-import { Vector3, CanvasTexture } from 'three'
-import { Billboard } from '@react-three/drei'
+import { useMemo } from 'react'
+import { Vector3 } from 'three'
+import { Billboard, Text } from '@react-three/drei'
 import { ecefToThree } from '../math/wgs84'
 import type { Mat3, Vec3 } from '../math/types'
 
@@ -26,72 +26,6 @@ function perpendicular(dir: Vector3): Vector3 {
   return new Vector3(1, 0, 0)
 }
 
-// ── Canvas label texture ──────────────────────────────────────────────────────
-// Renders  "x" (italic, large) + "ECI" (normal, smaller, subscripted) onto a
-// transparent canvas so the label looks like proper math notation.
-
-const CANVAS_W = 256
-const CANVAS_H = 100
-const MAIN_SIZE = 58   // px — axis letter
-const SUB_SIZE  = 36   // px — subscript frame name
-const DISPLAY_H = 0.32 // Three.js display-unit height of the label plane
-
-function makeLabelTexture(axisChar: string, subscript: string, color: string): CanvasTexture {
-  const canvas = document.createElement('canvas')
-  canvas.width  = CANVAS_W
-  canvas.height = CANVAS_H
-  const ctx = canvas.getContext('2d')!
-  ctx.clearRect(0, 0, CANVAS_W, CANVAS_H)
-  ctx.fillStyle = color
-
-  // Italic axis letter
-  ctx.font = `italic bold ${MAIN_SIZE}px "Times New Roman", Georgia, serif`
-  ctx.textBaseline = 'alphabetic'
-  const mainW = ctx.measureText(axisChar).width
-  ctx.fillText(axisChar, 4, CANVAS_H * 0.72)
-
-  // Subscript
-  ctx.font = `${SUB_SIZE}px "Times New Roman", Georgia, serif`
-  ctx.fillText(subscript, mainW + 6, CANVAS_H * 0.88)
-
-  return new CanvasTexture(canvas)
-}
-
-// ── Single label billboard ────────────────────────────────────────────────────
-
-interface MathLabelProps {
-  axisChar: string
-  subscript: string
-  color: string
-  opacity: number
-  position: [number, number, number]
-}
-
-function MathLabel({ axisChar, subscript, color, opacity, position }: MathLabelProps) {
-  const texture = useMemo(
-    () => makeLabelTexture(axisChar, subscript, color),
-    [axisChar, subscript, color],
-  )
-  useEffect(() => () => { texture.dispose() }, [texture])
-
-  const aspect = CANVAS_W / CANVAS_H
-  return (
-    <Billboard position={position}>
-      <mesh>
-        <planeGeometry args={[DISPLAY_H * aspect, DISPLAY_H]} />
-        <meshBasicMaterial
-          map={texture}
-          transparent
-          depthWrite={false}
-          opacity={opacity}
-        />
-      </mesh>
-    </Billboard>
-  )
-}
-
-// ── Main component ────────────────────────────────────────────────────────────
-
 interface LabelEntry {
   axisChar: string
   subscript: string
@@ -113,7 +47,7 @@ export function AxisLabels({ axes }: { axes: AxisEntry[] }) {
       for (let col = 0; col < 3; col++) {
         const dir = colFromMat(rotation, col as 0 | 1 | 2)
         entries.push({
-          axisChar: AXIS_NAMES[col],
+          axisChar:  AXIS_NAMES[col],
           subscript: label,
           tip: origin.clone().addScaledVector(dir, length + 0.3),
           color: AXIS_COLORS[col],
@@ -144,18 +78,37 @@ export function AxisLabels({ axes }: { axes: AxisEntry[] }) {
     <>
       {groups.map((group, gi) =>
         group.map((entry, li) => {
-          const perp = perpendicular(group[0].dir)
+          const perp   = perpendicular(group[0].dir)
           const offset = -(group.length - 1) * SPREAD * 0.5 + li * SPREAD
-          const pos = entry.tip.clone().addScaledVector(perp, offset)
+          const pos    = entry.tip.clone().addScaledVector(perp, offset)
+            .toArray() as [number, number, number]
           return (
-            <MathLabel
-              key={`${gi}-${li}`}
-              axisChar={entry.axisChar}
-              subscript={entry.subscript}
-              color={entry.color}
-              opacity={entry.opacity}
-              position={pos.toArray() as [number, number, number]}
-            />
+            <Billboard key={`${gi}-${li}`} position={pos}>
+              {/* italic axis letter */}
+              <Text
+                position={[-0.04, 0.04, 0]}
+                fontSize={0.22}
+                color={entry.color}
+                fontStyle="italic"
+                fontWeight="bold"
+                anchorX="right"
+                anchorY="bottom"
+                fillOpacity={entry.opacity}
+              >
+                {entry.axisChar}
+              </Text>
+              {/* subscript frame name */}
+              <Text
+                position={[0.04, -0.04, 0]}
+                fontSize={0.14}
+                color={entry.color}
+                anchorX="left"
+                anchorY="top"
+                fillOpacity={entry.opacity}
+              >
+                {entry.subscript}
+              </Text>
+            </Billboard>
           )
         })
       )}
