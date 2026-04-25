@@ -231,12 +231,17 @@ export default function App() {
           <sphereGeometry args={[0.055, 12, 12]} />
           <meshBasicMaterial color="#ccccff" />
         </mesh>
-        {/* Angle arcs: λ, φ, θ */}
+        {/* Angle arcs: λ, φ gated on NED/ENU visibility; θ gated on ECI visibility */}
         {state.showAngleArcs && (
-          <AngleArcs ecef={state.ecef} gmstRad={g} />
+          <AngleArcs
+            ecef={state.ecef}
+            gmstRad={g}
+            showLonLat={state.showFrames[CoordFrame.NED] || state.showFrames[CoordFrame.ENU]}
+            showGmst={state.showFrames[CoordFrame.ECI]}
+          />
         )}
-        {/* Attitude arcs: ψ (yaw), θ (pitch), φ (roll) */}
-        {state.showAttitudeArcs && (
+        {/* Attitude arcs: ψ/θ/φ gated on Body frame visibility */}
+        {state.showAttitudeArcs && state.showFrames[CoordFrame.Body] && (
           <AttitudeArcs
             ecef={state.ecef}
             gmstRad={g}
