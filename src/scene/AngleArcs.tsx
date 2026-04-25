@@ -92,27 +92,28 @@ export function AngleArcs({ ecef, gmstRad }: AngleArcsProps) {
   const latTickEnd  = tick(latRad,  R_LAT, meridianDir, NORTH_POLE)
   const gmstTickEnd = tick(gmstRad, R_GMST, PRIME_MERIDIAN, new Vector3(-1, 0, 0))
 
-  // ── Label positions: arc midpoint, just outside the arc radius ───────────
-  // All three use midpoint angle so the label sits centred on the arc and
-  // close to the surface rather than projecting outward toward the entity.
-  const lonLabelPos = new Vector3(
-    Math.sin(lonRad / 2),
-    0,
-    Math.cos(lonRad / 2),
-  ).multiplyScalar(R_LON * 1.04).toArray() as Pt3
+  // ── Label positions: arc midpoint + perpendicular offset ─────────────────
+  // Equatorial (Z-rotation) arcs offset vertically (+NORTH_POLE, out of plane).
+  // Latitude arc offsets horizontally (+East, out of the meridian plane).
+  const lonLabelPos = new Vector3(Math.sin(lonRad / 2), 0, Math.cos(lonRad / 2))
+    .multiplyScalar(R_LON)
+    .addScaledVector(NORTH_POLE, 0.4)
+    .toArray() as Pt3
 
   const latMidDir = meridianDir.clone()
     .multiplyScalar(Math.cos(latRad / 2))
     .addScaledVector(NORTH_POLE, Math.sin(latRad / 2))
+  // East unit vector in Three.js at entity longitude: ECEF [-sin λ, cos λ, 0] → [cos λ, 0, -sin λ]
+  const eastDir = new Vector3(Math.cos(lonRad), 0, -Math.sin(lonRad))
   const latLabelPos = latMidDir.clone()
-    .multiplyScalar(R_LAT * 1.04)
+    .multiplyScalar(R_LAT)
+    .addScaledVector(eastDir, 0.4)
     .toArray() as Pt3
 
-  const gmstLabelPos = new Vector3(
-    -Math.sin(gmstRad / 2),
-    0,
-    Math.cos(gmstRad / 2),
-  ).multiplyScalar(R_GMST * 1.04).toArray() as Pt3
+  const gmstLabelPos = new Vector3(-Math.sin(gmstRad / 2), 0, Math.cos(gmstRad / 2))
+    .multiplyScalar(R_GMST)
+    .addScaledVector(NORTH_POLE, 0.4)
+    .toArray() as Pt3
 
   const COL_LON  = '#ffcc00'
   const COL_LAT  = '#00ffcc'
