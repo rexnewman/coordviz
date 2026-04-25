@@ -14,6 +14,7 @@ import { FrameAxes } from './scene/FrameAxes'
 import { SceneSetup } from './scene/SceneSetup'
 import { ControlPanel } from './components/ControlPanel'
 import { CoordDisplay } from './components/CoordDisplay'
+import { MatrixDisplay } from './components/MatrixDisplay'
 import { frameRotationInEcef, bodyRotationInEcef, gmst } from './math/transforms'
 
 const DEFAULT_ECEF: Vec3 = llaToEcef({ lat: 0, lon: 0, alt: 400_000 })
@@ -236,6 +237,9 @@ export default function App() {
 
       {/* key forces remount after drag so Leva fields reflect new position */}
       <ControlPanel key={panelKey} state={state} onChange={onChange} />
+
+      {/* Coordinate transformation matrices */}
+      <MatrixDisplay gmstRad={g} latRad={lla.lat * Math.PI / 180} lonRad={lla.lon * Math.PI / 180} />
 
       {/* Bottom coordinate readout */}
       <CoordDisplay ecef={state.ecef} epochMs={state.epochMs} />
