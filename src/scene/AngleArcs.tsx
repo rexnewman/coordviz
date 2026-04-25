@@ -99,18 +99,13 @@ export function AngleArcs({ ecef, gmstRad }: AngleArcsProps) {
     Math.cos(lonRad),
   ).multiplyScalar(R_LON * 1.2).toArray() as Pt3
 
-  // Latitude arc endpoint direction (radial — same as entity "up", causes conflict).
-  // Offset the label along the arc tangent at the endpoint so it clears the up axis.
-  const latEndDir = meridianDir.clone()
-    .multiplyScalar(Math.cos(latRad))
-    .addScaledVector(NORTH_POLE, Math.sin(latRad))
-  // Tangent = derivative of arc at latRad: perpendicular to latEndDir, in the meridian plane
-  const latTangent = meridianDir.clone()
-    .multiplyScalar(-Math.sin(latRad))
-    .addScaledVector(NORTH_POLE, Math.cos(latRad))
-  const latLabelPos = latEndDir.clone()
-    .multiplyScalar(R_LAT * 1.05)
-    .addScaledVector(latTangent, 0.5)
+  // Label at arc midpoint, offset radially outward — vertically centred on the arc,
+  // to the side (outward), and clear of the entity / attitude arcs at the endpoint.
+  const latMidDir = meridianDir.clone()
+    .multiplyScalar(Math.cos(latRad / 2))
+    .addScaledVector(NORTH_POLE, Math.sin(latRad / 2))
+  const latLabelPos = latMidDir.clone()
+    .multiplyScalar(R_LAT * 1.2)
     .toArray() as Pt3
 
   const gmstLabelPos = new Vector3(
