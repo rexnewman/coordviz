@@ -92,32 +92,28 @@ export function AngleArcs({ ecef, gmstRad }: AngleArcsProps) {
   const latTickEnd  = tick(latRad,  R_LAT, meridianDir, NORTH_POLE)
   const gmstTickEnd = tick(gmstRad, R_GMST, PRIME_MERIDIAN, new Vector3(-1, 0, 0))
 
-  // ── Label positions (radially outward from arc endpoint) ─────────────────
-  const lonLabelPos = new Vector3(
-    Math.sin(lonRad),
-    0,
-    Math.cos(lonRad),
-  ).multiplyScalar(R_LON * 1.2).toArray() as Pt3
-
-  // Latitude arc endpoint direction (radial — same as entity "up", causes conflict).
-  // Offset the label along the arc tangent at the endpoint so it clears the up axis.
-  const latEndDir = meridianDir.clone()
-    .multiplyScalar(Math.cos(latRad))
-    .addScaledVector(NORTH_POLE, Math.sin(latRad))
-  // Tangent = derivative of arc at latRad: perpendicular to latEndDir, in the meridian plane
-  const latTangent = meridianDir.clone()
-    .multiplyScalar(-Math.sin(latRad))
-    .addScaledVector(NORTH_POLE, Math.cos(latRad))
-  const latLabelPos = latEndDir.clone()
-    .multiplyScalar(R_LAT * 1.2)
-    .addScaledVector(latTangent, 0.8)
+  // ── Label positions: arc midpoint + perpendicular offset ─────────────────
+  // Equatorial (Z-rotation) arcs offset vertically (+NORTH_POLE, out of plane).
+  // Latitude arc offsets horizontally (+East, out of the meridian plane).
+  const lonLabelPos = new Vector3(Math.sin(lonRad / 2), 0, Math.cos(lonRad / 2))
+    .multiplyScalar(R_LON)
+    .addScaledVector(NORTH_POLE, 0.4)
     .toArray() as Pt3
 
-  const gmstLabelPos = new Vector3(
-    -Math.sin(gmstRad),
-    0,
-    Math.cos(gmstRad),
-  ).multiplyScalar(R_GMST * 1.2).toArray() as Pt3
+  const latMidDir = meridianDir.clone()
+    .multiplyScalar(Math.cos(latRad / 2))
+    .addScaledVector(NORTH_POLE, Math.sin(latRad / 2))
+  // East unit vector in Three.js at entity longitude: ECEF [-sin λ, cos λ, 0] → [cos λ, 0, -sin λ]
+  const eastDir = new Vector3(Math.cos(lonRad), 0, -Math.sin(lonRad))
+  const latLabelPos = latMidDir.clone()
+    .multiplyScalar(R_LAT)
+    .addScaledVector(eastDir, 0.4)
+    .toArray() as Pt3
+
+  const gmstLabelPos = new Vector3(-Math.sin(gmstRad / 2), 0, Math.cos(gmstRad / 2))
+    .multiplyScalar(R_GMST)
+    .addScaledVector(NORTH_POLE, 0.4)
+    .toArray() as Pt3
 
   const COL_LON  = '#ffcc00'
   const COL_LAT  = '#00ffcc'
