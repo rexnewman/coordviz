@@ -109,8 +109,8 @@ export function AngleArcs({ ecef, gmstRad }: AngleArcsProps) {
     .multiplyScalar(-Math.sin(latRad))
     .addScaledVector(NORTH_POLE, Math.cos(latRad))
   const latLabelPos = latEndDir.clone()
-    .multiplyScalar(R_LAT * 1.2)
-    .addScaledVector(latTangent, 0.8)
+    .multiplyScalar(R_LAT * 1.05)
+    .addScaledVector(latTangent, 0.5)
     .toArray() as Pt3
 
   const gmstLabelPos = new Vector3(
