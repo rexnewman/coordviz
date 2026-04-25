@@ -6,6 +6,7 @@ import { Line } from '@react-three/drei'
 import { llaToEcef, ecefToLla } from './math/transforms'
 import { ecefToThree } from './math/wgs84'
 import { AngleArcs } from './scene/AngleArcs'
+import { AttitudeArcs } from './scene/AttitudeArcs'
 import { AxisLabels } from './scene/AxisLabels'
 import type { AxisEntry } from './scene/AxisLabels'
 import { EarthMesh } from './scene/EarthMesh'
@@ -38,7 +39,8 @@ const INITIAL_STATE: AppState = {
   axisScale: 1.5,
   earthOpacity: 1,
   sunIntensity:   1.2,
-  showAngleArcs:  true,
+  showAngleArcs:    true,
+  showAttitudeArcs: true,
 }
 
 const FRAME_LABELS: Partial<Record<CoordFrame, string>> = {
@@ -232,6 +234,17 @@ export default function App() {
         {/* Angle arcs: λ, φ, θ */}
         {state.showAngleArcs && (
           <AngleArcs ecef={state.ecef} gmstRad={g} />
+        )}
+        {/* Attitude arcs: ψ (yaw), θ (pitch), φ (roll) */}
+        {state.showAttitudeArcs && (
+          <AttitudeArcs
+            ecef={state.ecef}
+            gmstRad={g}
+            attitudeFrame={state.attitudeFrame as 'ECI' | 'ECEF' | 'LLA' | 'ENU' | 'NED'}
+            rollDeg={state.attitude.roll}
+            pitchDeg={state.attitude.pitch}
+            yawDeg={state.attitude.yaw}
+          />
         )}
       </Canvas>
 

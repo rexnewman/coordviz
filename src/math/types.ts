@@ -54,5 +54,6 @@ export interface AppState {
   axisScale:      number
   earthOpacity:   number
   sunIntensity:   number
-  showAngleArcs:  boolean
+  showAngleArcs:     boolean
+  showAttitudeArcs:  boolean
 }

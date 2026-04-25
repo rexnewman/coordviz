@@ -117,7 +117,8 @@ export function ControlPanel({ state, onChange }: ControlPanelProps) {
       'Show ENU':  { value: state.showFrames[CoordFrame.ENU],  onChange: (v: boolean) => onChange({ showFrames: { ...stateRef.current.showFrames, [CoordFrame.ENU]: v } }) },
       'Show NED':  { value: state.showFrames[CoordFrame.NED],  onChange: (v: boolean) => onChange({ showFrames: { ...stateRef.current.showFrames, [CoordFrame.NED]: v } }) },
       'Show Body': { value: state.showFrames[CoordFrame.Body], onChange: (v: boolean) => onChange({ showFrames: { ...stateRef.current.showFrames, [CoordFrame.Body]: v } }) },
-      'Show angle arcs': { value: state.showAngleArcs, onChange: (v: boolean) => onChange({ showAngleArcs: v }) },
+      'Show angle arcs':    { value: state.showAngleArcs,    onChange: (v: boolean) => onChange({ showAngleArcs: v }) },
+      'Show attitude arcs': { value: state.showAttitudeArcs, onChange: (v: boolean) => onChange({ showAttitudeArcs: v }) },
       'Axis scale': {
         value: state.axisScale,
         min: 0.2, max: 5, step: 0.1,
