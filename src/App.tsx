@@ -239,7 +239,15 @@ export default function App() {
       <ControlPanel key={panelKey} state={state} onChange={onChange} />
 
       {/* Coordinate transformation matrices */}
-      <MatrixDisplay gmstRad={g} latRad={lla.lat * Math.PI / 180} lonRad={lla.lon * Math.PI / 180} />
+      <MatrixDisplay
+        gmstRad={g}
+        latRad={lla.lat * Math.PI / 180}
+        lonRad={lla.lon * Math.PI / 180}
+        rollRad={state.attitude.roll   * Math.PI / 180}
+        pitchRad={state.attitude.pitch * Math.PI / 180}
+        yawRad={state.attitude.yaw     * Math.PI / 180}
+        attitudeFrame={state.attitudeFrame}
+      />
 
       {/* Bottom coordinate readout */}
       <CoordDisplay ecef={state.ecef} epochMs={state.epochMs} />
