@@ -51,9 +51,11 @@ const R_LAT  = 6.68
 interface AngleArcsProps {
   ecef: Vec3
   gmstRad: number
+  showLonLat?: boolean
+  showGmst?: boolean
 }
 
-export function AngleArcs({ ecef, gmstRad }: AngleArcsProps) {
+export function AngleArcs({ ecef, gmstRad, showLonLat = true, showGmst = true }: AngleArcsProps) {
   const lla    = ecefToLla(ecef)
   const latRad = lla.lat * DEG
   const lonRad = lla.lon * DEG
@@ -122,53 +124,58 @@ export function AngleArcs({ ecef, gmstRad }: AngleArcsProps) {
 
   return (
     <group>
-      {/* ── Projection geometry (always visible above Earth) ── */}
-      {/* Vertical drop: entity → equatorial plane */}
-      <Line points={[entityPos, eqProj]} color={COL_PROJ} lineWidth={1} opacity={0.6} transparent />
-      {/* Equatorial arm: origin → equatorial projection */}
-      <Line points={[[0, 0, 0], eqProj]} color={COL_PROJ} lineWidth={1} opacity={0.6} transparent />
-      {/* Small dot at equatorial projection */}
-      <mesh position={eqProj}>
-        <sphereGeometry args={[0.06, 8, 8]} />
-        <meshBasicMaterial color={COL_PROJ} />
-      </mesh>
+      {showLonLat && (
+        <>
+          {/* Projection geometry: vertical drop, equatorial arm, dot */}
+          <Line points={[entityPos, eqProj]} color={COL_PROJ} lineWidth={1} opacity={0.6} transparent />
+          <Line points={[[0, 0, 0], eqProj]} color={COL_PROJ} lineWidth={1} opacity={0.6} transparent />
+          <mesh position={eqProj}>
+            <sphereGeometry args={[0.06, 8, 8]} />
+            <meshBasicMaterial color={COL_PROJ} />
+          </mesh>
 
-      {/* ── Reference stubs at arc start (0 °) ── */}
-      {/* Prime meridian stub for lon & GMST */}
-      <Line points={[[0,0,0], [0, 0, R_LON * 1.05]]}  color={COL_LON}  lineWidth={1} opacity={0.3} transparent />
-      <Line points={[[0,0,0], [0, 0, R_GMST * 1.05]]} color={COL_GMST} lineWidth={1} opacity={0.3} transparent />
-      {/* Meridian stub for lat */}
-      <Line
-        points={[[0,0,0], meridianDir.clone().multiplyScalar(R_LAT * 1.05).toArray() as Pt3]}
-        color={COL_LAT} lineWidth={1} opacity={0.3} transparent
-      />
+          {/* Reference stubs */}
+          <Line points={[[0,0,0], [0, 0, R_LON * 1.05]]} color={COL_LON} lineWidth={1} opacity={0.3} transparent />
+          <Line
+            points={[[0,0,0], meridianDir.clone().multiplyScalar(R_LAT * 1.05).toArray() as Pt3]}
+            color={COL_LAT} lineWidth={1} opacity={0.3} transparent
+          />
 
-      {/* ── Longitude arc ── */}
-      <Line points={lonArc} color={COL_LON} lineWidth={2.5} />
-      <Line points={lonTickEnd} color={COL_LON} lineWidth={2} />
-      <Billboard position={lonLabelPos}>
-        <Text fontSize={0.28} color={COL_LON} anchorX="center" anchorY="middle">
-          {`λ = ${lla.lon.toFixed(1)}°`}
-        </Text>
-      </Billboard>
+          {/* Longitude arc λ */}
+          <Line points={lonArc} color={COL_LON} lineWidth={2.5} />
+          <Line points={lonTickEnd} color={COL_LON} lineWidth={2} />
+          <Billboard position={lonLabelPos}>
+            <Text fontSize={0.28} color={COL_LON} anchorX="center" anchorY="middle">
+              {`λ = ${lla.lon.toFixed(1)}°`}
+            </Text>
+          </Billboard>
 
-      {/* ── Latitude arc ── */}
-      <Line points={latArc} color={COL_LAT} lineWidth={2.5} />
-      <Line points={latTickEnd} color={COL_LAT} lineWidth={2} />
-      <Billboard position={latLabelPos}>
-        <Text fontSize={0.28} color={COL_LAT} anchorX="center" anchorY="middle">
-          {`φ = ${lla.lat.toFixed(1)}°`}
-        </Text>
-      </Billboard>
+          {/* Latitude arc φ */}
+          <Line points={latArc} color={COL_LAT} lineWidth={2.5} />
+          <Line points={latTickEnd} color={COL_LAT} lineWidth={2} />
+          <Billboard position={latLabelPos}>
+            <Text fontSize={0.28} color={COL_LAT} anchorX="center" anchorY="middle">
+              {`φ = ${lla.lat.toFixed(1)}°`}
+            </Text>
+          </Billboard>
+        </>
+      )}
 
-      {/* ── GMST arc ── */}
-      <Line points={gmstArc} color={COL_GMST} lineWidth={2.5} />
-      <Line points={gmstTickEnd} color={COL_GMST} lineWidth={2} />
-      <Billboard position={gmstLabelPos}>
-        <Text fontSize={0.28} color={COL_GMST} anchorX="center" anchorY="middle">
-          {`θ = ${(gmstRad * 180 / Math.PI).toFixed(1)}°`}
-        </Text>
-      </Billboard>
+      {showGmst && (
+        <>
+          {/* GMST reference stub */}
+          <Line points={[[0,0,0], [0, 0, R_GMST * 1.05]]} color={COL_GMST} lineWidth={1} opacity={0.3} transparent />
+
+          {/* GMST arc θ */}
+          <Line points={gmstArc} color={COL_GMST} lineWidth={2.5} />
+          <Line points={gmstTickEnd} color={COL_GMST} lineWidth={2} />
+          <Billboard position={gmstLabelPos}>
+            <Text fontSize={0.28} color={COL_GMST} anchorX="center" anchorY="middle">
+              {`θ = ${(gmstRad * 180 / Math.PI).toFixed(1)}°`}
+            </Text>
+          </Billboard>
+        </>
+      )}
     </group>
   )
 }
