@@ -186,12 +186,7 @@ export function ControlPanel({ state, onChange, onPlay }: ControlPanelProps) {
 
   const [, setAttRaw] = useControls(() => ({
     Attitude: folder({
-      '▶ Attitude → Body': button(() => onPlay?.('body')),
-      'Parent frame': {
-        value: state.attitudeFrame,
-        options: [CoordFrame.ECI, CoordFrame.ECEF, CoordFrame.ENU, CoordFrame.NED],
-        onChange: (v: CoordFrame) => onChange({ attitudeFrame: v }),
-      },
+      '▶ NED → Body': button(() => onPlay?.('body')),
       'Roll (°)': {
         value: state.attitude.roll,
         min: -180, max: 180, step: 0.1,

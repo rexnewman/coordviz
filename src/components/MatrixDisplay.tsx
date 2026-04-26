@@ -9,7 +9,6 @@ interface MatrixDisplayProps {
   rollRad: number
   pitchRad: number
   yawRad: number
-  attitudeFrame: string
 }
 
 function fmt(v: number) { return v.toFixed(4) }
@@ -43,7 +42,7 @@ function RyNED(sym: [string, string]): string {
 // M_{NED→ENU}: swap first two rows, negate third
 const M_NED2ENU = String.raw`\begin{bmatrix}0&1&0\\1&0&0\\0&0&-1\end{bmatrix}`
 
-export function MatrixDisplay({ gmstRad, latRad, lonRad, rollRad, pitchRad, yawRad, attitudeFrame }: MatrixDisplayProps) {
+export function MatrixDisplay({ gmstRad, latRad, lonRad, rollRad, pitchRad, yawRad }: MatrixDisplayProps) {
   const eciRef  = useRef<HTMLDivElement>(null)
   const nedRef  = useRef<HTMLDivElement>(null)
   const enuRef  = useRef<HTMLDivElement>(null)
@@ -127,7 +126,7 @@ export function MatrixDisplay({ gmstRad, latRad, lonRad, rollRad, pitchRad, yawR
     const cy = Math.cos(yawRad),   sy = Math.sin(yawRad)
     render(bodyRef.current, String.raw`
       \small\begin{aligned}
-        T^{\text{Body}/${attitudeFrame}}
+        T^{\text{Body}/\text{NED}}
           &= R_x(\phi)\cdot R_y(\theta)\cdot R_z(\psi) \\
           &= ${Rx([String.raw`\cos\phi`, String.raw`\sin\phi`])}
              ${Ry([String.raw`\cos\theta`, String.raw`\sin\theta`])}
@@ -139,7 +138,7 @@ export function MatrixDisplay({ gmstRad, latRad, lonRad, rollRad, pitchRad, yawR
              \end{bmatrix}
       \end{aligned}
     `)
-  }, [rollRad, pitchRad, yawRad, attitudeFrame])
+  }, [rollRad, pitchRad, yawRad])
 
   return (
     <div style={{

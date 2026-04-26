@@ -46,7 +46,6 @@ export interface AppState {
   ecef:          Vec3
   inputFrame:    CoordFrame
   attitude:      Attitude
-  attitudeFrame: CoordFrame
   /** UTC epoch as JS Date timestamp (ms) */
   epochMs:       number
   showFrames:    Record<CoordFrame, boolean>

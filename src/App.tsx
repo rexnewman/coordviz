@@ -28,7 +28,6 @@ const INITIAL_STATE: AppState = {
   ecef:          DEFAULT_ECEF,
   inputFrame:    CoordFrame.LLA,
   attitude:      { roll: 0, pitch: 0, yaw: 0 },
-  attitudeFrame: CoordFrame.NED,
   epochMs:       Date.now(),
   showFrames: {
     [CoordFrame.ECI]:  true,
@@ -218,7 +217,7 @@ export default function App() {
           modelScale={state.entityScale}
           attitude={state.attitude}
           bodyRotation={bodyRotationInEcef(
-            state.attitudeFrame as 'ECI' | 'ECEF' | 'LLA' | 'ENU' | 'NED',
+            'NED',
             state.ecef, g,
             state.attitude.roll, state.attitude.pitch, state.attitude.yaw,
           )}
@@ -251,7 +250,7 @@ export default function App() {
         {(state.showFrames[CoordFrame.Body] || playback?.phase === 'body') && (
           <FrameAxes
             rotation={bodyRotationInEcef(
-              state.attitudeFrame as 'ECI' | 'ECEF' | 'LLA' | 'ENU' | 'NED',
+              'NED',
               state.ecef,
               g,
               animValues?.type === 'body' ? animValues.roll  : state.attitude.roll,
@@ -286,7 +285,7 @@ export default function App() {
             entries.push({
               label: 'Body',
               rotation: bodyRotationInEcef(
-                state.attitudeFrame as 'ECI' | 'ECEF' | 'LLA' | 'ENU' | 'NED',
+                'NED',
                 state.ecef, g,
                 animValues?.type === 'body' ? animValues.roll  : state.attitude.roll,
                 animValues?.type === 'body' ? animValues.pitch : state.attitude.pitch,
@@ -340,7 +339,7 @@ export default function App() {
           <AttitudeArcs
             ecef={state.ecef}
             gmstRad={g}
-            attitudeFrame={state.attitudeFrame as 'ECI' | 'ECEF' | 'LLA' | 'ENU' | 'NED'}
+            attitudeFrame={'NED'}
             rollDeg={animValues?.type === 'body' ? animValues.roll  : state.attitude.roll}
             pitchDeg={animValues?.type === 'body' ? animValues.pitch : state.attitude.pitch}
             yawDeg={animValues?.type === 'body' ? animValues.yaw   : state.attitude.yaw}
@@ -359,7 +358,6 @@ export default function App() {
         rollRad={state.attitude.roll   * Math.PI / 180}
         pitchRad={state.attitude.pitch * Math.PI / 180}
         yawRad={state.attitude.yaw     * Math.PI / 180}
-        attitudeFrame={state.attitudeFrame}
       />
 
       {/* Bottom coordinate readout */}
