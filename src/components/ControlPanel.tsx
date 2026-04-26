@@ -76,7 +76,7 @@ function defaultPosition(frame: CoordFrame): Vec3 {
 interface ControlPanelProps {
   state: AppState
   onChange: (next: Partial<AppState>) => void
-  onPlay?: (phase: 'eci') => void
+  onPlay?: (phase: 'eci' | 'ned' | 'enu' | 'body') => void
 }
 
 export function ControlPanel({ state, onChange, onPlay }: ControlPanelProps) {
@@ -117,7 +117,9 @@ export function ControlPanel({ state, onChange, onPlay }: ControlPanelProps) {
       'Show ECEF': { value: state.showFrames[CoordFrame.ECEF], onChange: (v: boolean) => onChange({ showFrames: { ...stateRef.current.showFrames, [CoordFrame.ECEF]: v } }) },
       'Show LLA':  { value: state.showFrames[CoordFrame.LLA],  onChange: (v: boolean) => onChange({ showFrames: { ...stateRef.current.showFrames, [CoordFrame.LLA]: v } }) },
       'Show ENU':  { value: state.showFrames[CoordFrame.ENU],  onChange: (v: boolean) => onChange({ showFrames: { ...stateRef.current.showFrames, [CoordFrame.ENU]: v } }) },
+      '▶ ECEF → ENU': button(() => onPlay?.('enu')),
       'Show NED':  { value: state.showFrames[CoordFrame.NED],  onChange: (v: boolean) => onChange({ showFrames: { ...stateRef.current.showFrames, [CoordFrame.NED]: v } }) },
+      '▶ ECEF → NED': button(() => onPlay?.('ned')),
       'Show Body': { value: state.showFrames[CoordFrame.Body], onChange: (v: boolean) => onChange({ showFrames: { ...stateRef.current.showFrames, [CoordFrame.Body]: v } }) },
       'Show angle arcs':    { value: state.showAngleArcs,    onChange: (v: boolean) => onChange({ showAngleArcs: v }) },
       'Show attitude arcs': { value: state.showAttitudeArcs, onChange: (v: boolean) => onChange({ showAttitudeArcs: v }) },
@@ -184,6 +186,7 @@ export function ControlPanel({ state, onChange, onPlay }: ControlPanelProps) {
 
   const [, setAttRaw] = useControls(() => ({
     Attitude: folder({
+      '▶ Attitude → Body': button(() => onPlay?.('body')),
       'Parent frame': {
         value: state.attitudeFrame,
         options: [CoordFrame.ECI, CoordFrame.ECEF, CoordFrame.ENU, CoordFrame.NED],

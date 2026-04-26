@@ -53,12 +53,16 @@ interface AngleArcsProps {
   gmstRad: number
   showLonLat?: boolean
   showGmst?: boolean
+  /** Override lon arc endpoint (radians) for playback animation */
+  animLonRad?: number
+  /** Override lat arc endpoint (radians) for playback animation */
+  animLatRad?: number
 }
 
-export function AngleArcs({ ecef, gmstRad, showLonLat = true, showGmst = true }: AngleArcsProps) {
+export function AngleArcs({ ecef, gmstRad, showLonLat = true, showGmst = true, animLonRad, animLatRad }: AngleArcsProps) {
   const lla    = ecefToLla(ecef)
-  const latRad = lla.lat * DEG
-  const lonRad = lla.lon * DEG
+  const latRad = animLatRad !== undefined ? animLatRad : lla.lat * DEG
+  const lonRad = animLonRad !== undefined ? animLonRad : lla.lon * DEG
 
   const entityPos = ecefToThree(ecef) as Pt3
   // Entity projected onto equatorial plane (Y = 0 in Three.js)
@@ -146,7 +150,7 @@ export function AngleArcs({ ecef, gmstRad, showLonLat = true, showGmst = true }:
           <Line points={lonTickEnd} color={COL_LON} lineWidth={2} />
           <Billboard position={lonLabelPos}>
             <Text fontSize={0.28} color={COL_LON} anchorX="center" anchorY="middle">
-              {`λ = ${lla.lon.toFixed(1)}°`}
+              {`λ = ${(lonRad / DEG).toFixed(1)}°`}
             </Text>
           </Billboard>
 
@@ -155,7 +159,7 @@ export function AngleArcs({ ecef, gmstRad, showLonLat = true, showGmst = true }:
           <Line points={latTickEnd} color={COL_LAT} lineWidth={2} />
           <Billboard position={latLabelPos}>
             <Text fontSize={0.28} color={COL_LAT} anchorX="center" anchorY="middle">
-              {`φ = ${lla.lat.toFixed(1)}°`}
+              {`φ = ${(latRad / DEG).toFixed(1)}°`}
             </Text>
           </Billboard>
         </>

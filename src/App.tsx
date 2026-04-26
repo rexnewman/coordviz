@@ -17,7 +17,9 @@ import { SceneSetup } from './scene/SceneSetup'
 import { ControlPanel } from './components/ControlPanel'
 import { CoordDisplay } from './components/CoordDisplay'
 import { MatrixDisplay } from './components/MatrixDisplay'
-import { frameRotationInEcef, bodyRotationInEcef, gmst } from './math/transforms'
+import { frameRotationInEcef, bodyRotationInEcef, gmst, ecefToEnuMatrix } from './math/transforms'
+import { mat3Transpose } from './math/rotation'
+import type { Mat3 } from './math/types'
 
 const DEFAULT_ECEF: Vec3 = llaToEcef({ lat: 0, lon: 0, alt: 400_000 })
 
@@ -63,19 +65,32 @@ export default function App() {
   ecefRef.current = state.ecef
 
   // ── Playback ──────────────────────────────────────────────────────────────
-  type PlayPhase = 'eci'
-  const [playback, setPlayback] = useState<{ phase: PlayPhase; t: number } | null>(null)
+  type PlayPhase = 'eci' | 'ned' | 'enu' | 'body'
+  const STEP_DURATIONS: Record<PlayPhase, number[]> = {
+    eci:  [3],          // 1 step: GMST sweep
+    ned:  [2, 2],       // step 0: lon sweep; step 1: lat sweep
+    enu:  [2, 2],       // same
+    body: [2, 2, 2],    // step 0: yaw; step 1: pitch; step 2: roll
+  }
+
+  const [playback, setPlayback] = useState<{ phase: PlayPhase; step: number; t: number } | null>(null)
 
   const onPlay = useCallback((phase: PlayPhase) => {
-    setPlayback({ phase, t: 0 })
+    setPlayback({ phase, step: 0, t: 0 })
   }, [])
 
   const onPlayTick = useCallback((dt: number) => {
     setPlayback(prev => {
       if (!prev) return null
-      const newT = prev.t + dt / 3   // 3-second animation
-      return newT >= 1 ? null : { ...prev, t: newT }
+      const durations = STEP_DURATIONS[prev.phase]
+      const newT = prev.t + dt / durations[prev.step]
+      if (newT >= 1) {
+        const nextStep = prev.step + 1
+        return nextStep >= durations.length ? null : { ...prev, step: nextStep, t: 0 }
+      }
+      return { ...prev, t: newT }
     })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const onChange = useCallback((next: Partial<AppState>) => {
@@ -105,13 +120,38 @@ export default function App() {
   )
 
   const g = gmst(state.epochMs)
-  // During ECI playback, sweep the effective GMST for ECI frame + GMST arc from 0 → g
-  const animGmstRad = useMemo(
-    () => (playback?.phase === 'eci' ? g * playback.t : g),
-    [playback, g],
-  )
 
   const lla = ecefToLla(state.ecef)
+
+  // Animated values for the active playback phase
+  const animValues = useMemo(() => {
+    if (!playback) return null
+    const { phase, step, t } = playback
+    if (phase === 'eci') {
+      return { type: 'eci' as const, gmstRad: g * t }
+    }
+    if (phase === 'ned' || phase === 'enu') {
+      const fullLon = lla.lon * (Math.PI / 180)
+      const fullLat = lla.lat * (Math.PI / 180)
+      return {
+        type: phase,
+        lonRad: step === 0 ? fullLon * t : fullLon,
+        latRad: step === 0 ? 0           : fullLat * t,
+      }
+    }
+    if (phase === 'body') {
+      const { roll, pitch, yaw } = state.attitude
+      return {
+        type: 'body' as const,
+        yaw:   step === 0 ? yaw * t   : yaw,
+        pitch: step === 1 ? pitch * t : (step > 1 ? pitch : 0),
+        roll:  step === 2 ? roll * t  : 0,
+      }
+    }
+    return null
+  }, [playback, g, lla.lat, lla.lon, state.attitude])
+
+  const animGmstRad = animValues?.type === 'eci' ? animValues.gmstRad : g
   const surfaceEcef: Vec3 = llaToEcef({ lat: lla.lat, lon: lla.lon, alt: 0 })
 
   // Center-origin axes (ECI/ECEF) extend axisScale units beyond entity altitude.
@@ -125,6 +165,24 @@ export default function App() {
     if (frame === CoordFrame.ECI || frame === CoordFrame.ECEF) return ZERO
     if (frame === CoordFrame.LLA) return surfaceEcef
     return state.ecef  // ENU, NED
+  }
+
+  // Returns the rotation matrix for a frame, substituting animated values when active.
+  const R2D = 180 / Math.PI
+  const getFrameRot = (frame: CoordFrame): Mat3 => {
+    const av = animValues
+    if ((av?.type === 'ned' && frame === CoordFrame.NED) ||
+        (av?.type === 'enu' && frame === CoordFrame.ENU)) {
+      const R_enu = mat3Transpose(ecefToEnuMatrix({
+        lat: (av as { latRad: number }).latRad * R2D,
+        lon: (av as { lonRad: number }).lonRad * R2D,
+        alt: 0,
+      }))
+      if (frame === CoordFrame.ENU) return R_enu
+      return [R_enu[1], R_enu[0], -R_enu[2], R_enu[4], R_enu[3], -R_enu[5], R_enu[7], R_enu[6], -R_enu[8]] as Mat3
+    }
+    const effGmst = frame === CoordFrame.ECI ? animGmstRad : g
+    return frameRotationInEcef(frame as 'ECI' | 'ECEF' | 'LLA' | 'ENU' | 'NED', state.ecef, effGmst)
   }
 
   // Sun position in Three.js world space.
@@ -172,20 +230,17 @@ export default function App() {
 
         {/* Reference frame axes */}
         {(Object.keys(FRAME_LABELS) as CoordFrame[]).map(frame => {
-          const visible = state.showFrames[frame] || (frame === CoordFrame.ECI && playback?.phase === 'eci')
+          const p = playback?.phase
+          const visible = state.showFrames[frame]
+            || (frame === CoordFrame.ECI  && p === 'eci')
+            || (frame === CoordFrame.ENU  && p === 'enu')
+            || (frame === CoordFrame.NED  && p === 'ned')
           if (!visible) return null
           const isCenterFrame = frame === CoordFrame.ECI || frame === CoordFrame.ECEF
-          // ECI uses animated gmst during ECI playback so its axes sweep from ECEF alignment
-          const effectiveGmst = frame === CoordFrame.ECI ? animGmstRad : g
-          const rot = frameRotationInEcef(
-            frame as 'ECI' | 'ECEF' | 'LLA' | 'ENU' | 'NED',
-            state.ecef,
-            effectiveGmst,
-          )
           return (
             <FrameAxes
               key={frame}
-              rotation={rot}
+              rotation={getFrameRot(frame)}
               originEcef={frameOrigin(frame)}
               length={isCenterFrame ? centerAxisLen : localAxisLen}
             />
@@ -193,15 +248,15 @@ export default function App() {
         })}
 
         {/* Body frame axes */}
-        {state.showFrames[CoordFrame.Body] && (
+        {(state.showFrames[CoordFrame.Body] || playback?.phase === 'body') && (
           <FrameAxes
             rotation={bodyRotationInEcef(
               state.attitudeFrame as 'ECI' | 'ECEF' | 'LLA' | 'ENU' | 'NED',
               state.ecef,
               g,
-              state.attitude.roll,
-              state.attitude.pitch,
-              state.attitude.yaw,
+              animValues?.type === 'body' ? animValues.roll  : state.attitude.roll,
+              animValues?.type === 'body' ? animValues.pitch : state.attitude.pitch,
+              animValues?.type === 'body' ? animValues.yaw   : state.attitude.yaw,
             )}
             originEcef={state.ecef}
             length={localAxisLen * 1.3}
@@ -212,29 +267,30 @@ export default function App() {
         {/* Axis labels — rendered once across all frames for coincidence deconfliction */}
         {(() => {
           const entries: AxisEntry[] = []
+          const p = playback?.phase
           ;(Object.keys(FRAME_LABELS) as CoordFrame[]).forEach(frame => {
-            const visible = state.showFrames[frame] || (frame === CoordFrame.ECI && playback?.phase === 'eci')
+            const visible = state.showFrames[frame]
+              || (frame === CoordFrame.ECI && p === 'eci')
+              || (frame === CoordFrame.ENU && p === 'enu')
+              || (frame === CoordFrame.NED && p === 'ned')
             if (!visible) return
             const isCenterFrame = frame === CoordFrame.ECI || frame === CoordFrame.ECEF
-            const effectiveGmst = frame === CoordFrame.ECI ? animGmstRad : g
             entries.push({
               label: frame,
-              rotation: frameRotationInEcef(
-                frame as 'ECI' | 'ECEF' | 'LLA' | 'ENU' | 'NED',
-                state.ecef,
-                effectiveGmst,
-              ),
+              rotation: getFrameRot(frame),
               originEcef: frameOrigin(frame),
               length: isCenterFrame ? centerAxisLen : localAxisLen,
             })
           })
-          if (state.showFrames[CoordFrame.Body]) {
+          if (state.showFrames[CoordFrame.Body] || p === 'body') {
             entries.push({
               label: 'Body',
               rotation: bodyRotationInEcef(
                 state.attitudeFrame as 'ECI' | 'ECEF' | 'LLA' | 'ENU' | 'NED',
                 state.ecef, g,
-                state.attitude.roll, state.attitude.pitch, state.attitude.yaw,
+                animValues?.type === 'body' ? animValues.roll  : state.attitude.roll,
+                animValues?.type === 'body' ? animValues.pitch : state.attitude.pitch,
+                animValues?.type === 'body' ? animValues.yaw   : state.attitude.yaw,
               ),
               originEcef: state.ecef,
               length: localAxisLen * 1.3,
@@ -264,19 +320,30 @@ export default function App() {
           <AngleArcs
             ecef={state.ecef}
             gmstRad={animGmstRad}
-            showLonLat={state.showFrames[CoordFrame.NED] || state.showFrames[CoordFrame.ENU]}
+            showLonLat={
+              state.showFrames[CoordFrame.NED] || state.showFrames[CoordFrame.ENU]
+              || playback?.phase === 'ned' || playback?.phase === 'enu'
+            }
             showGmst={state.showFrames[CoordFrame.ECI] || playback?.phase === 'eci'}
+            animLonRad={
+              animValues?.type === 'ned' || animValues?.type === 'enu'
+                ? animValues.lonRad : undefined
+            }
+            animLatRad={
+              animValues?.type === 'ned' || animValues?.type === 'enu'
+                ? animValues.latRad : undefined
+            }
           />
         )}
         {/* Attitude arcs: ψ/θ/φ gated on Body frame visibility */}
-        {state.showAttitudeArcs && state.showFrames[CoordFrame.Body] && (
+        {state.showAttitudeArcs && (state.showFrames[CoordFrame.Body] || playback?.phase === 'body') && (
           <AttitudeArcs
             ecef={state.ecef}
             gmstRad={g}
             attitudeFrame={state.attitudeFrame as 'ECI' | 'ECEF' | 'LLA' | 'ENU' | 'NED'}
-            rollDeg={state.attitude.roll}
-            pitchDeg={state.attitude.pitch}
-            yawDeg={state.attitude.yaw}
+            rollDeg={animValues?.type === 'body' ? animValues.roll  : state.attitude.roll}
+            pitchDeg={animValues?.type === 'body' ? animValues.pitch : state.attitude.pitch}
+            yawDeg={animValues?.type === 'body' ? animValues.yaw   : state.attitude.yaw}
           />
         )}
       </Canvas>
