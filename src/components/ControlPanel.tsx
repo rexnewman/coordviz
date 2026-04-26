@@ -76,9 +76,10 @@ function defaultPosition(frame: CoordFrame): Vec3 {
 interface ControlPanelProps {
   state: AppState
   onChange: (next: Partial<AppState>) => void
+  onPlay?: (phase: 'eci') => void
 }
 
-export function ControlPanel({ state, onChange }: ControlPanelProps) {
+export function ControlPanel({ state, onChange, onPlay }: ControlPanelProps) {
   // Always-current ref so static Leva onChange closures read fresh state
   const stateRef = useRef(state)
   stateRef.current = state
@@ -112,6 +113,7 @@ export function ControlPanel({ state, onChange }: ControlPanelProps) {
 
     Display: folder({
       'Show ECI':  { value: state.showFrames[CoordFrame.ECI],  onChange: (v: boolean) => onChange({ showFrames: { ...stateRef.current.showFrames, [CoordFrame.ECI]: v } }) },
+      '▶ ECI → ECEF': button(() => onPlay?.('eci')),
       'Show ECEF': { value: state.showFrames[CoordFrame.ECEF], onChange: (v: boolean) => onChange({ showFrames: { ...stateRef.current.showFrames, [CoordFrame.ECEF]: v } }) },
       'Show LLA':  { value: state.showFrames[CoordFrame.LLA],  onChange: (v: boolean) => onChange({ showFrames: { ...stateRef.current.showFrames, [CoordFrame.LLA]: v } }) },
       'Show ENU':  { value: state.showFrames[CoordFrame.ENU],  onChange: (v: boolean) => onChange({ showFrames: { ...stateRef.current.showFrames, [CoordFrame.ENU]: v } }) },

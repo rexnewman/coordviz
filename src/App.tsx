@@ -1,4 +1,4 @@
-import { Suspense, useState, useCallback, useRef } from 'react'
+import { Suspense, useState, useCallback, useRef, useMemo } from 'react'
 import { Canvas } from '@react-three/fiber'
 import { CoordFrame, EntityType } from './math/types'
 import type { AppState, Vec3 } from './math/types'
@@ -6,6 +6,7 @@ import { Line } from '@react-three/drei'
 import { llaToEcef, ecefToLla } from './math/transforms'
 import { ecefToThree } from './math/wgs84'
 import { AngleArcs } from './scene/AngleArcs'
+import { AnimationController } from './scene/AnimationController'
 import { AttitudeArcs } from './scene/AttitudeArcs'
 import { AxisLabels } from './scene/AxisLabels'
 import type { AxisEntry } from './scene/AxisLabels'
@@ -61,6 +62,22 @@ export default function App() {
   const ecefRef = useRef(state.ecef)
   ecefRef.current = state.ecef
 
+  // ── Playback ──────────────────────────────────────────────────────────────
+  type PlayPhase = 'eci'
+  const [playback, setPlayback] = useState<{ phase: PlayPhase; t: number } | null>(null)
+
+  const onPlay = useCallback((phase: PlayPhase) => {
+    setPlayback({ phase, t: 0 })
+  }, [])
+
+  const onPlayTick = useCallback((dt: number) => {
+    setPlayback(prev => {
+      if (!prev) return null
+      const newT = prev.t + dt / 3   // 3-second animation
+      return newT >= 1 ? null : { ...prev, t: newT }
+    })
+  }, [])
+
   const onChange = useCallback((next: Partial<AppState>) => {
     setState(prev => {
       // Suppress near-zero ecef updates to break sync-loop between drag and Leva onChange
@@ -88,6 +105,11 @@ export default function App() {
   )
 
   const g = gmst(state.epochMs)
+  // During ECI playback, sweep the effective GMST for ECI frame + GMST arc from 0 → g
+  const animGmstRad = useMemo(
+    () => (playback?.phase === 'eci' ? g * playback.t : g),
+    [playback, g],
+  )
 
   const lla = ecefToLla(state.ecef)
   const surfaceEcef: Vec3 = llaToEcef({ lat: lla.lat, lon: lla.lon, alt: 0 })
@@ -127,6 +149,7 @@ export default function App() {
         gl={{ antialias: true }}
         style={{ position: 'absolute', inset: 0 }}
       >
+        <AnimationController playing={playback !== null} onTick={onPlayTick} />
         <SceneSetup sunIntensity={state.sunIntensity} sunPosition={sunPosition} orbitEnabled={orbitEnabled} />
         <Suspense fallback={null}>
           <EarthMesh opacity={state.earthOpacity} />
@@ -149,12 +172,15 @@ export default function App() {
 
         {/* Reference frame axes */}
         {(Object.keys(FRAME_LABELS) as CoordFrame[]).map(frame => {
-          if (!state.showFrames[frame]) return null
+          const visible = state.showFrames[frame] || (frame === CoordFrame.ECI && playback?.phase === 'eci')
+          if (!visible) return null
           const isCenterFrame = frame === CoordFrame.ECI || frame === CoordFrame.ECEF
+          // ECI uses animated gmst during ECI playback so its axes sweep from ECEF alignment
+          const effectiveGmst = frame === CoordFrame.ECI ? animGmstRad : g
           const rot = frameRotationInEcef(
             frame as 'ECI' | 'ECEF' | 'LLA' | 'ENU' | 'NED',
             state.ecef,
-            g,
+            effectiveGmst,
           )
           return (
             <FrameAxes
@@ -187,14 +213,16 @@ export default function App() {
         {(() => {
           const entries: AxisEntry[] = []
           ;(Object.keys(FRAME_LABELS) as CoordFrame[]).forEach(frame => {
-            if (!state.showFrames[frame]) return
+            const visible = state.showFrames[frame] || (frame === CoordFrame.ECI && playback?.phase === 'eci')
+            if (!visible) return
             const isCenterFrame = frame === CoordFrame.ECI || frame === CoordFrame.ECEF
+            const effectiveGmst = frame === CoordFrame.ECI ? animGmstRad : g
             entries.push({
               label: frame,
               rotation: frameRotationInEcef(
                 frame as 'ECI' | 'ECEF' | 'LLA' | 'ENU' | 'NED',
                 state.ecef,
-                g,
+                effectiveGmst,
               ),
               originEcef: frameOrigin(frame),
               length: isCenterFrame ? centerAxisLen : localAxisLen,
@@ -231,13 +259,13 @@ export default function App() {
           <sphereGeometry args={[0.055, 12, 12]} />
           <meshBasicMaterial color="#ccccff" />
         </mesh>
-        {/* Angle arcs: λ, φ gated on NED/ENU visibility; θ gated on ECI visibility */}
+        {/* Angle arcs: λ, φ gated on NED/ENU visibility; θ gated on ECI visibility or playback */}
         {state.showAngleArcs && (
           <AngleArcs
             ecef={state.ecef}
-            gmstRad={g}
+            gmstRad={animGmstRad}
             showLonLat={state.showFrames[CoordFrame.NED] || state.showFrames[CoordFrame.ENU]}
-            showGmst={state.showFrames[CoordFrame.ECI]}
+            showGmst={state.showFrames[CoordFrame.ECI] || playback?.phase === 'eci'}
           />
         )}
         {/* Attitude arcs: ψ/θ/φ gated on Body frame visibility */}
@@ -254,7 +282,7 @@ export default function App() {
       </Canvas>
 
       {/* key forces remount after drag so Leva fields reflect new position */}
-      <ControlPanel key={panelKey} state={state} onChange={onChange} />
+      <ControlPanel key={panelKey} state={state} onChange={onChange} onPlay={onPlay} />
 
       {/* Coordinate transformation matrices */}
       <MatrixDisplay

@@ -1,4 +1,3 @@
-import { CoordFrame } from '../math/types'
 import type { Vec3 } from '../math/types'
 import {
   ecefToLla, ecefToEnu, ecefToEci, enuToNed, gmst,
