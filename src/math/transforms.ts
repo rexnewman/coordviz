@@ -13,7 +13,7 @@
  */
 
 import { WGS84, primeVerticalRadius } from './wgs84'
-import { Rz, mat3MulVec, mat3Transpose, eulerToMat3, mat3Mul } from './rotation'
+import { Rz, Ry, Rx, mat3MulVec, mat3Transpose, mat3Mul } from './rotation'
 import type { Vec3, Mat3, LLAPosition } from './types'
 
 const DEG = Math.PI / 180
@@ -198,6 +198,8 @@ export function bodyRotationInEcef(
   yawDeg: number,
 ): Mat3 {
   const R_parent = frameRotationInEcef(parentFrame, ecef, gmstRad)
-  const R_body = eulerToMat3(rollDeg * DEG, pitchDeg * DEG, yawDeg * DEG)
+  // 3-2-1 intrinsic: yaw about body-Z, then pitch about body-Y₁, then roll about body-X₂.
+  // Columns = body axes in parent → Rz(ψ)·Ry(θ)·Rx(φ).
+  const R_body = mat3Mul(Rz(yawDeg * DEG), mat3Mul(Ry(pitchDeg * DEG), Rx(rollDeg * DEG)))
   return mat3Mul(R_parent, R_body)
 }
