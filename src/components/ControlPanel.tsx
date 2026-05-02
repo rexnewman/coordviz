@@ -73,6 +73,13 @@ function defaultPosition(frame: CoordFrame): Vec3 {
   }
 }
 
+const epochToTod = (ms: number) => {
+  const d = new Date(ms)
+  return d.getUTCHours() + d.getUTCMinutes() / 60 + d.getUTCSeconds() / 3600
+}
+const epochToIso = (ms: number) => new Date(ms).toISOString().slice(0, 19)
+const epochToGmstDeg = (ms: number) => +(gmst(ms) * 180 / Math.PI).toFixed(3)
+
 interface ControlPanelProps {
   state: AppState
   onChange: (next: Partial<AppState>) => void
@@ -83,6 +90,56 @@ export function ControlPanel({ state, onChange, onPlay }: ControlPanelProps) {
   // Always-current ref so static Leva onChange closures read fresh state
   const stateRef = useRef(state)
   stateRef.current = state
+
+  // Time — first hook so it renders at the top of the Leva panel
+  const [, setTimeRaw] = useControls(() => ({
+    Time: folder({
+      '▶ ECI → ECEF': button(() => onPlay?.('eci')),
+      'UTC datetime': {
+        value: epochToIso(state.epochMs),
+        onChange: (v: string) => {
+          if (v.length < 19) return
+          const ms = new Date(v.endsWith('Z') ? v : v + 'Z').getTime()
+          if (!isNaN(ms)) onChange({ epochMs: ms })
+        },
+      },
+      'θ GMST (°)': {
+        value: epochToGmstDeg(state.epochMs),
+        min: 0, max: 360, step: 0.01,
+        onChange: (v: number) => {
+          const targetRad = v * Math.PI / 180
+          const s = stateRef.current
+          const curGmst = gmst(s.epochMs)
+          let delta = targetRad - curGmst
+          while (delta >  Math.PI) delta -= 2 * Math.PI
+          while (delta < -Math.PI) delta += 2 * Math.PI
+          const deltaMs = delta * (86_164_090.5 / (2 * Math.PI))
+          onChange({ epochMs: s.epochMs + deltaMs })
+        },
+      },
+      'Time of day (h)': {
+        value: epochToTod(state.epochMs),
+        min: 0, max: 24, step: 0.01,
+        onChange: (v: number) => {
+          const s = stateRef.current
+          const d = new Date(s.epochMs)
+          const midnight = Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate())
+          onChange({ epochMs: midnight + v * 3_600_000 })
+        },
+      },
+      'Set to now': button(() => onChange({ epochMs: Date.now() })),
+    }),
+  }))
+  const setTime = setTimeRaw as (v: Record<string, unknown>) => void
+
+  useEffect(() => {
+    setTime({
+      'UTC datetime': epochToIso(state.epochMs),
+      'θ GMST (°)':   epochToGmstDeg(state.epochMs),
+      'Time of day (h)': epochToTod(state.epochMs),
+    })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.epochMs])
 
   const [labels0, labels1, labels2] = coordLabels(state.inputFrame)
   const displayed = ecefToDisplay(state.inputFrame, state.ecef, state.epochMs)
@@ -113,7 +170,6 @@ export function ControlPanel({ state, onChange, onPlay }: ControlPanelProps) {
 
     Display: folder({
       'Show ECI':  { value: state.showFrames[CoordFrame.ECI],  onChange: (v: boolean) => onChange({ showFrames: { ...stateRef.current.showFrames, [CoordFrame.ECI]: v } }) },
-      '▶ ECI → ECEF': button(() => onPlay?.('eci')),
       'Show ECEF': { value: state.showFrames[CoordFrame.ECEF], onChange: (v: boolean) => onChange({ showFrames: { ...stateRef.current.showFrames, [CoordFrame.ECEF]: v } }) },
       'Show LLA':  { value: state.showFrames[CoordFrame.LLA],  onChange: (v: boolean) => onChange({ showFrames: { ...stateRef.current.showFrames, [CoordFrame.LLA]: v } }) },
       'Show ENU':  { value: state.showFrames[CoordFrame.ENU],  onChange: (v: boolean) => onChange({ showFrames: { ...stateRef.current.showFrames, [CoordFrame.ENU]: v } }) },
@@ -214,64 +270,6 @@ export function ControlPanel({ state, onChange, onPlay }: ControlPanelProps) {
     })
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state.attitude])
-
-  // Derive time-of-day (UTC hours) from epoch for display
-  const epochToTod = (ms: number) => {
-    const d = new Date(ms)
-    return d.getUTCHours() + d.getUTCMinutes() / 60 + d.getUTCSeconds() / 3600
-  }
-  const epochToIso = (ms: number) => new Date(ms).toISOString().slice(0, 19)
-  const epochToGmstDeg = (ms: number) => +(gmst(ms) * 180 / Math.PI).toFixed(3)
-
-  const [, setTimeRaw] = useControls(() => ({
-    Time: folder({
-      'UTC datetime': {
-        value: epochToIso(state.epochMs),
-        onChange: (v: string) => {
-          if (v.length < 19) return
-          const ms = new Date(v.endsWith('Z') ? v : v + 'Z').getTime()
-          if (!isNaN(ms)) onChange({ epochMs: ms })
-        },
-      },
-      'θ GMST (°)': {
-        value: epochToGmstDeg(state.epochMs),
-        min: 0, max: 360, step: 0.01,
-        onChange: (v: number) => {
-          const targetRad = v * Math.PI / 180
-          const s = stateRef.current
-          const curGmst = gmst(s.epochMs)
-          let delta = targetRad - curGmst
-          while (delta >  Math.PI) delta -= 2 * Math.PI
-          while (delta < -Math.PI) delta += 2 * Math.PI
-          // GMST rate ≈ one revolution per sidereal day
-          const deltaMs = delta * (86_164_090.5 / (2 * Math.PI))
-          onChange({ epochMs: s.epochMs + deltaMs })
-        },
-      },
-      'Time of day (h)': {
-        value: epochToTod(state.epochMs),
-        min: 0, max: 24, step: 0.01,
-        onChange: (v: number) => {
-          const s = stateRef.current
-          const d = new Date(s.epochMs)
-          const midnight = Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate())
-          onChange({ epochMs: midnight + v * 3_600_000 })
-        },
-      },
-      'Set to now': button(() => onChange({ epochMs: Date.now() })),
-    }),
-  }))
-  // Leva doesn't infer flat keys through folder() — cast to allow programmatic updates
-  const setTime = setTimeRaw as (v: Record<string, unknown>) => void
-
-  useEffect(() => {
-    setTime({
-      'UTC datetime': epochToIso(state.epochMs),
-      'θ GMST (°)':   epochToGmstDeg(state.epochMs),
-      'Time of day (h)': epochToTod(state.epochMs),
-    })
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [state.epochMs])
 
   return null
 }
