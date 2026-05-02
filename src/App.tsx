@@ -127,6 +127,7 @@ export default function App() {
     if (!playback) return null
     const { phase, step, t } = playback
     if (phase === 'eci') {
+      // ECEF→ECI: ECI sweeps from ECEF (angle 0) out to its true GMST offset
       return { type: 'eci' as const, gmstRad: g * t }
     }
     if (phase === 'ned' || phase === 'enu') {

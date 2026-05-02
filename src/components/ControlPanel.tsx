@@ -94,7 +94,7 @@ export function ControlPanel({ state, onChange, onPlay }: ControlPanelProps) {
   // Time — first hook so it renders at the top of the Leva panel
   const [, setTimeRaw] = useControls(() => ({
     Time: folder({
-      '▶ ECI → ECEF': button(() => onPlay?.('eci')),
+      '▶ ECEF → ECI': button(() => onPlay?.('eci')),
       'UTC datetime': {
         value: epochToIso(state.epochMs),
         onChange: (v: string) => {
