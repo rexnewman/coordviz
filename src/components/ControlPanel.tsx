@@ -156,11 +156,6 @@ export function ControlPanel({ state, onChange, onPlay }: ControlPanelProps) {
         options: Object.values(EntityType),
         onChange: (v: EntityType) => onChange({ entityType: v }),
       },
-      'Input frame': {
-        value: state.inputFrame,
-        options: [CoordFrame.LLA, CoordFrame.ECEF, CoordFrame.ECI, CoordFrame.ENU, CoordFrame.NED],
-        onChange: (v: CoordFrame) => onChange({ inputFrame: v }),
-      },
       'Model scale': {
         value: state.entityScale,
         min: 0.1, max: 10, step: 0.1,
@@ -201,6 +196,11 @@ export function ControlPanel({ state, onChange, onPlay }: ControlPanelProps) {
 
   const [, setPosRaw] = useControls(() => ({
     Position: folder({
+      'Input frame': {
+        value: state.inputFrame,
+        options: [CoordFrame.LLA, CoordFrame.ECEF, CoordFrame.ECI],
+        onChange: (v: CoordFrame) => onChange({ inputFrame: v }),
+      },
       pos_0: {
         label: labels0,
         value: displayed[0],
@@ -238,7 +238,7 @@ export function ControlPanel({ state, onChange, onPlay }: ControlPanelProps) {
   useEffect(() => {
     const s = stateRef.current
     const disp = ecefToDisplay(s.inputFrame, s.ecef, s.epochMs)
-    setPos({ pos_0: disp[0], pos_1: disp[1], pos_2: disp[2] })
+    setPos({ 'Input frame': s.inputFrame, pos_0: disp[0], pos_1: disp[1], pos_2: disp[2] })
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state.ecef, state.inputFrame, state.epochMs])
 
