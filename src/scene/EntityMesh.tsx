@@ -1,5 +1,5 @@
 import { useRef, useEffect, useMemo, Suspense } from 'react'
-import { Group, Matrix4, Raycaster, Vector2, Vector3 } from 'three'
+import { Box3, Group, Matrix4, Raycaster, Vector2, Vector3 } from 'three'
 import { useThree } from '@react-three/fiber'
 import type { ThreeEvent } from '@react-three/fiber'
 import { useGLTF } from '@react-three/drei'
@@ -8,24 +8,34 @@ import type { Vec3, Attitude, Mat3 } from '../math/types'
 import { ecefToThree, threeToEcef } from '../math/wgs84'
 import { ecefToLla, llaToEcef } from '../math/transforms'
 
-// Correction rotation aligns the loaded C182 GLB (nose→Three.js-Z after baked quaternion)
-// to our body frame (nose→+X, right-wing→+Y, belly→+Z).
-// Euler XYZ [0, -π/2, -π/2] gives matrix [[0,0,-1],[-1,0,0],[0,1,0]] — verified analytically.
-// Euler XYZ [π/2, 0, −π/2] = Rz(−π/2)·Ry(0)·Rx(π/2) = [[0,0,−1],[−1,0,0],[0,1,0]]
+// Euler XYZ [π/2, 0, −π/2] = Rz(−π/2)·Rx(π/2) = [[0,0,−1],[−1,0,0],[0,1,0]]
+// Maps loaded GLB orientation (nose→Three.js −Z) to body frame (nose→+X, right→+Y, belly→+Z).
 const C182_ROT: [number, number, number] = [Math.PI / 2, 0, -Math.PI / 2]
-// GLB fuselage center offset from GLB origin (X=2.55 m), mapped to body-frame +Y after rotation.
-const C182_X_CENTER = 2.55   // metres in GLB space
 
 function C182Model({ scale }: { scale: number }) {
   const { scene } = useGLTF('/C182.glb')
   const clone = useMemo(() => scene.clone(true), [scene])
   const glbScale = scale * 0.2   // 0.03 Three.js units per GLB metre at modelScale=1
+
+  // Center the bounding box at the entity (group) origin.
+  // After M_A, a Three.js centre (cx,cy,cz) lands at body (−cz,−cx,cy).
+  // Cancel with parent-space offset (cz·s, cx·s, −cy·s).
+  const center = useMemo(() => {
+    const c = new Vector3()
+    new Box3().setFromObject(clone).getCenter(c)
+    return c
+  }, [clone])
+
   return (
     <primitive
       object={clone}
       scale={glbScale}
       rotation={C182_ROT}
-      position={[0, C182_X_CENTER * glbScale, 0]}
+      position={[
+         center.z * glbScale,
+         center.x * glbScale,
+        -center.y * glbScale,
+      ]}
     />
   )
 }
