@@ -11,7 +11,8 @@ import { ecefToLla, llaToEcef } from '../math/transforms'
 // Correction rotation aligns the loaded C182 GLB (nose→Three.js-Z after baked quaternion)
 // to our body frame (nose→+X, right-wing→+Y, belly→+Z).
 // Euler XYZ [0, -π/2, -π/2] gives matrix [[0,0,-1],[-1,0,0],[0,1,0]] — verified analytically.
-const C182_ROT: [number, number, number] = [0, -Math.PI / 2, -Math.PI / 2]
+// Euler XYZ [π/2, 0, −π/2] = Rz(−π/2)·Ry(0)·Rx(π/2) = [[0,0,−1],[−1,0,0],[0,1,0]]
+const C182_ROT: [number, number, number] = [Math.PI / 2, 0, -Math.PI / 2]
 // GLB fuselage center offset from GLB origin (X=2.55 m), mapped to body-frame +Y after rotation.
 const C182_X_CENTER = 2.55   // metres in GLB space
 
