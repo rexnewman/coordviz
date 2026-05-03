@@ -14,6 +14,7 @@ import { EarthMesh } from './scene/EarthMesh'
 import { EntityMesh } from './scene/EntityMesh'
 import { FrameAxes } from './scene/FrameAxes'
 import { SceneSetup } from './scene/SceneSetup'
+import { Leva } from 'leva'
 import { ControlPanel } from './components/ControlPanel'
 import { CoordDisplay } from './components/CoordDisplay'
 import { MatrixDisplay } from './components/MatrixDisplay'
@@ -40,7 +41,7 @@ const INITIAL_STATE: AppState = {
   entityScale: 1,
   axisScale: 1.5,
   earthOpacity: 1,
-  sunIntensity:   1.2,
+  sunIntensity:   2.5,
   showAngleArcs:    true,
   showAttitudeArcs: true,
 }
@@ -348,6 +349,7 @@ export default function App() {
         )}
       </Canvas>
 
+      <Leva theme={{ sizes: { rootWidth: '320px' } }} />
       {/* key forces remount after drag so Leva fields reflect new position */}
       <ControlPanel key={panelKey} state={state} onChange={onChange} onPlay={onPlay} />
 

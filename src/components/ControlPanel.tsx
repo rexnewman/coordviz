@@ -169,31 +169,33 @@ export function ControlPanel({ state, onChange, onPlay }: ControlPanelProps) {
     }),
 
     Display: folder({
-      'Show ECI':  { value: state.showFrames[CoordFrame.ECI],  onChange: (v: boolean) => onChange({ showFrames: { ...stateRef.current.showFrames, [CoordFrame.ECI]: v } }) },
-      'Show ECEF': { value: state.showFrames[CoordFrame.ECEF], onChange: (v: boolean) => onChange({ showFrames: { ...stateRef.current.showFrames, [CoordFrame.ECEF]: v } }) },
-      'Show LLA':  { value: state.showFrames[CoordFrame.LLA],  onChange: (v: boolean) => onChange({ showFrames: { ...stateRef.current.showFrames, [CoordFrame.LLA]: v } }) },
-      'Show ENU':  { value: state.showFrames[CoordFrame.ENU],  onChange: (v: boolean) => onChange({ showFrames: { ...stateRef.current.showFrames, [CoordFrame.ENU]: v } }) },
-      '▶ ECEF → ENU': button(() => onPlay?.('enu')),
-      'Show NED':  { value: state.showFrames[CoordFrame.NED],  onChange: (v: boolean) => onChange({ showFrames: { ...stateRef.current.showFrames, [CoordFrame.NED]: v } }) },
-      '▶ ECEF → NED': button(() => onPlay?.('ned')),
-      'Show Body': { value: state.showFrames[CoordFrame.Body], onChange: (v: boolean) => onChange({ showFrames: { ...stateRef.current.showFrames, [CoordFrame.Body]: v } }) },
-      'Show angle arcs':    { value: state.showAngleArcs,    onChange: (v: boolean) => onChange({ showAngleArcs: v }) },
-      'Show attitude arcs': { value: state.showAttitudeArcs, onChange: (v: boolean) => onChange({ showAttitudeArcs: v }) },
-      'Axis scale': {
-        value: state.axisScale,
-        min: 0.2, max: 5, step: 0.1,
-        onChange: (v: number) => onChange({ axisScale: v }),
+      'Sun intensity': {
+        value: state.sunIntensity,
+        min: 0, max: 8, step: 0.1,
+        onChange: (v: number) => onChange({ sunIntensity: v }),
       },
       'Earth opacity': {
         value: state.earthOpacity,
         min: 0, max: 1, step: 0.01,
         onChange: (v: number) => onChange({ earthOpacity: v }),
       },
-      'Sun intensity': {
-        value: state.sunIntensity,
-        min: 0, max: 4, step: 0.05,
-        onChange: (v: number) => onChange({ sunIntensity: v }),
+      'Axis scale': {
+        value: state.axisScale,
+        min: 0.2, max: 5, step: 0.1,
+        onChange: (v: number) => onChange({ axisScale: v }),
       },
+      Axes: folder({
+        'Show ECI':  { value: state.showFrames[CoordFrame.ECI],  onChange: (v: boolean) => onChange({ showFrames: { ...stateRef.current.showFrames, [CoordFrame.ECI]: v } }) },
+        'Show ECEF': { value: state.showFrames[CoordFrame.ECEF], onChange: (v: boolean) => onChange({ showFrames: { ...stateRef.current.showFrames, [CoordFrame.ECEF]: v } }) },
+        'Show LLA':  { value: state.showFrames[CoordFrame.LLA],  onChange: (v: boolean) => onChange({ showFrames: { ...stateRef.current.showFrames, [CoordFrame.LLA]: v } }) },
+        'Show ENU':  { value: state.showFrames[CoordFrame.ENU],  onChange: (v: boolean) => onChange({ showFrames: { ...stateRef.current.showFrames, [CoordFrame.ENU]: v } }) },
+        '▶ ECEF → ENU': button(() => onPlay?.('enu')),
+        'Show NED':  { value: state.showFrames[CoordFrame.NED],  onChange: (v: boolean) => onChange({ showFrames: { ...stateRef.current.showFrames, [CoordFrame.NED]: v } }) },
+        '▶ ECEF → NED': button(() => onPlay?.('ned')),
+        'Show Body': { value: state.showFrames[CoordFrame.Body], onChange: (v: boolean) => onChange({ showFrames: { ...stateRef.current.showFrames, [CoordFrame.Body]: v } }) },
+        'Show angle arcs':    { value: state.showAngleArcs,    onChange: (v: boolean) => onChange({ showAngleArcs: v }) },
+        'Show attitude arcs': { value: state.showAttitudeArcs, onChange: (v: boolean) => onChange({ showAttitudeArcs: v }) },
+      }),
     }),
   })
 
