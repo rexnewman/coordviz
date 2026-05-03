@@ -189,7 +189,7 @@ export default function App() {
   // At noon UTC the sun is near the prime meridian; each hour shifts 15° west.
   const d = new Date(state.epochMs)
   const timeOfDay = d.getUTCHours() + d.getUTCMinutes() / 60 + d.getUTCSeconds() / 3600
-  const subSolarLon = (lla.lon - (timeOfDay - 12) * 15) * (Math.PI / 180)
+  const subSolarLon = -(timeOfDay - 12) * 15 * (Math.PI / 180)
   const SUN_DIST = 30
   const sunPosition: [number, number, number] = [
     Math.sin(subSolarLon) * SUN_DIST,  // Three.js X = ECEF Y
