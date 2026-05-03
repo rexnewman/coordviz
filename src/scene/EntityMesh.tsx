@@ -1,11 +1,35 @@
-import { useRef, useEffect } from 'react'
+import { useRef, useEffect, useMemo, Suspense } from 'react'
 import { Group, Matrix4, Raycaster, Vector2, Vector3 } from 'three'
 import { useThree } from '@react-three/fiber'
 import type { ThreeEvent } from '@react-three/fiber'
+import { useGLTF } from '@react-three/drei'
 import { EntityType } from '../math/types'
 import type { Vec3, Attitude, Mat3 } from '../math/types'
 import { ecefToThree, threeToEcef } from '../math/wgs84'
 import { ecefToLla, llaToEcef } from '../math/transforms'
+
+// Correction rotation aligns the loaded C182 GLB (nose→Three.js-Z after baked quaternion)
+// to our body frame (nose→+X, right-wing→+Y, belly→+Z).
+// Euler XYZ [0, -π/2, -π/2] gives matrix [[0,0,-1],[-1,0,0],[0,1,0]] — verified analytically.
+const C182_ROT: [number, number, number] = [0, -Math.PI / 2, -Math.PI / 2]
+// GLB fuselage center offset from GLB origin (X=2.55 m), mapped to body-frame +Y after rotation.
+const C182_X_CENTER = 2.55   // metres in GLB space
+
+function C182Model({ scale }: { scale: number }) {
+  const { scene } = useGLTF('/C182.glb')
+  const clone = useMemo(() => scene.clone(true), [scene])
+  const glbScale = scale * 0.2   // 0.03 Three.js units per GLB metre at modelScale=1
+  return (
+    <primitive
+      object={clone}
+      scale={glbScale}
+      rotation={C182_ROT}
+      position={[0, C182_X_CENTER * glbScale, 0]}
+    />
+  )
+}
+
+useGLTF.preload('/C182.glb')
 
 interface EntityMeshProps {
   type: EntityType
@@ -180,16 +204,20 @@ export function EntityMesh({
           </mesh>
         </>
       ) : (
-        <>
-          <mesh rotation={[0, 0, -Math.PI / 2]}>
-            <coneGeometry args={[scale * 0.4, scale * 1.6, 8]} />
-            <meshStandardMaterial color="#d0d0d0" metalness={0.6} roughness={0.4} />
-          </mesh>
-          <mesh>
-            <boxGeometry args={[scale * 0.2, scale * 0.05, scale * 2.0]} />
-            <meshStandardMaterial color="#b0b0b0" metalness={0.5} roughness={0.5} />
-          </mesh>
-        </>
+        <Suspense fallback={
+          <>
+            <mesh rotation={[0, 0, -Math.PI / 2]}>
+              <coneGeometry args={[scale * 0.4, scale * 1.6, 8]} />
+              <meshStandardMaterial color="#d0d0d0" metalness={0.6} roughness={0.4} />
+            </mesh>
+            <mesh>
+              <boxGeometry args={[scale * 0.2, scale * 0.05, scale * 2.0]} />
+              <meshStandardMaterial color="#b0b0b0" metalness={0.5} roughness={0.5} />
+            </mesh>
+          </>
+        }>
+          <C182Model scale={scale} />
+        </Suspense>
       )}
     </group>
   )
