@@ -1,4 +1,4 @@
-import { Suspense, useState, useCallback, useRef, useMemo } from 'react'
+import { Suspense, useState, useCallback, useRef, useMemo, useEffect } from 'react'
 import { Canvas } from '@react-three/fiber'
 import { CoordFrame, EntityType } from './math/types'
 import type { AppState, Vec3 } from './math/types'
@@ -107,6 +107,9 @@ export default function App() {
       return { ...prev, ...next }
     })
   }, [])
+
+  // Remount ControlPanel when inputFrame changes so Leva re-initializes labels
+  useEffect(() => { setPanelKey(k => k + 1) }, [state.inputFrame])
 
   const onDragStart = useCallback(() => setOrbitEnabled(false), [])
   const onDragEnd   = useCallback(() => {

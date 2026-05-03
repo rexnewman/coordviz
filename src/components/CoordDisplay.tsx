@@ -1,6 +1,6 @@
 import type { Vec3 } from '../math/types'
 import {
-  ecefToLla, ecefToEnu, ecefToEci, enuToNed, gmst,
+  ecefToLla, ecefToEci, enuToNed, ecefToEnu, gmst,
 } from '../math/transforms'
 
 interface CoordDisplayProps {
@@ -16,8 +16,7 @@ export function CoordDisplay({ ecef, epochMs }: CoordDisplayProps) {
   const g = gmst(epochMs)
   const lla = ecefToLla(ecef)
   const eci = ecefToEci(ecef, g)
-  const enu = ecefToEnu(ecef, lla)
-  const ned = enuToNed(enu)
+  const ned = enuToNed(ecefToEnu(ecef, lla))
 
   const rows: { frame: string; vals: string[] }[] = [
     {
@@ -33,10 +32,6 @@ export function CoordDisplay({ ecef, epochMs }: CoordDisplayProps) {
       vals: [`Lat: ${fmt(lla.lat, 6)}°`, `Lon: ${fmt(lla.lon, 6)}°`, `Alt: ${fmt(lla.alt, 1)} m`],
     },
     {
-      frame: 'ENU',
-      vals: [`E: ${fmt(enu[0])} m`, `N: ${fmt(enu[1])} m`, `U: ${fmt(enu[2])} m`],
-    },
-    {
       frame: 'NED',
       vals: [`N: ${fmt(ned[0])} m`, `E: ${fmt(ned[1])} m`, `D: ${fmt(ned[2])} m`],
     },
@@ -46,7 +41,6 @@ export function CoordDisplay({ ecef, epochMs }: CoordDisplayProps) {
     ECI:  '#ff6666',
     ECEF: '#66ff66',
     LLA:  '#ffdd44',
-    ENU:  '#66aaff',
     NED:  '#ff88cc',
   }
 
