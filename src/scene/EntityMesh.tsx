@@ -16,12 +16,16 @@ function C182Model({ scale }: { scale: number }) {
   const clone = useMemo(() => scene.clone(true), [scene])
   const glbScale = scale * 0.2   // 0.03 Three.js units per GLB metre at modelScale=1
 
-  // Center the bounding box at the entity (group) origin.
+  // Center the bounding box at the entity (group) origin, then shift +1/8 plane-length
+  // along body +X (= local +Y for this rotation).
   // R maps centre (cx,cy,cz) to body (cy,−cz,−cx); cancel with (−cy·s, cz·s, cx·s).
-  const center = useMemo(() => {
+  const { center, size } = useMemo(() => {
+    const box = new Box3().setFromObject(clone)
     const c = new Vector3()
-    new Box3().setFromObject(clone).getCenter(c)
-    return c
+    const s = new Vector3()
+    box.getCenter(c)
+    box.getSize(s)
+    return { center: c, size: s }
   }, [clone])
 
   return (
@@ -30,9 +34,9 @@ function C182Model({ scale }: { scale: number }) {
       scale={glbScale}
       rotation={C182_ROT}
       position={[
-        -center.y * glbScale,
-         center.z * glbScale,
-         center.x * glbScale,
+        (-center.y + size.y / 8) * glbScale,
+          center.z * glbScale,
+          center.x * glbScale,
       ]}
     />
   )
