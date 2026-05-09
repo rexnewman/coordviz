@@ -34,7 +34,7 @@ const INITIAL_STATE: AppState = {
     [CoordFrame.ECI]:  true,
     [CoordFrame.ECEF]: true,
     [CoordFrame.LLA]:  false,
-    [CoordFrame.ENU]:  true,
+    [CoordFrame.ENU]:  false,
     [CoordFrame.NED]:  true,
     [CoordFrame.Body]: true,
   },
