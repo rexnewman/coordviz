@@ -35,7 +35,7 @@ function C182Model({ scale }: { scale: number }) {
       rotation={C182_ROT}
       position={[
         (-center.y + size.y * 7 / 16) * glbScale,
-        ( center.z + size.y * 5 / 8) * glbScale,
+        ( center.z + size.y * 3 / 4) * glbScale,
           center.x * glbScale,
       ]}
     />
