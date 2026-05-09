@@ -8,8 +8,8 @@ import type { Vec3, Attitude, Mat3 } from '../math/types'
 import { ecefToThree, threeToEcef } from '../math/wgs84'
 import { ecefToLla, llaToEcef } from '../math/transforms'
 
-// Identity rotation — model renders in its raw Three.js GLB orientation.
-const C182_ROT: [number, number, number] = [0, 0, 0]
+// Rz(−π/2) = [[0,1,0],[−1,0,0],[0,0,1]]
+const C182_ROT: [number, number, number] = [0, 0, -Math.PI / 2]
 
 function C182Model({ scale }: { scale: number }) {
   const { scene } = useGLTF('/C182.glb')
@@ -17,7 +17,7 @@ function C182Model({ scale }: { scale: number }) {
   const glbScale = scale * 0.2   // 0.03 Three.js units per GLB metre at modelScale=1
 
   // Center the bounding box at the entity (group) origin.
-  // R = I, so body offset = (cx,cy,cz); cancel with (−cx·s, −cy·s, −cz·s).
+  // Rz(−π/2) maps centre (cx,cy,cz) to body (cy,−cx,cz); cancel with (−cy·s, cx·s, −cz·s).
   const center = useMemo(() => {
     const c = new Vector3()
     new Box3().setFromObject(clone).getCenter(c)
@@ -30,8 +30,8 @@ function C182Model({ scale }: { scale: number }) {
       scale={glbScale}
       rotation={C182_ROT}
       position={[
-        -center.x * glbScale,
         -center.y * glbScale,
+         center.x * glbScale,
         -center.z * glbScale,
       ]}
     />
