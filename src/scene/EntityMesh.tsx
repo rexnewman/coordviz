@@ -8,10 +8,8 @@ import type { Vec3, Attitude, Mat3 } from '../math/types'
 import { ecefToThree, threeToEcef } from '../math/wgs84'
 import { ecefToLla, llaToEcef } from '../math/transforms'
 
-// Starting from [[0,1,0],[0,0,1],[1,0,0]] (nose→body −Y), Rz(π) about body down flips XY:
-// Euler XYZ [π/2, −π/2, 0] = Ry(−π/2)·Rx(π/2) = [[0,−1,0],[0,0,−1],[1,0,0]]
-// Nose (Three.js −Z) → body +X, right wing → body +Y, belly → body +Z.
-const C182_ROT: [number, number, number] = [Math.PI / 2, -Math.PI / 2, 0]
+// Identity rotation — model renders in its raw Three.js GLB orientation.
+const C182_ROT: [number, number, number] = [0, 0, 0]
 
 function C182Model({ scale }: { scale: number }) {
   const { scene } = useGLTF('/C182.glb')
@@ -19,8 +17,7 @@ function C182Model({ scale }: { scale: number }) {
   const glbScale = scale * 0.2   // 0.03 Three.js units per GLB metre at modelScale=1
 
   // Center the bounding box at the entity (group) origin.
-  // R maps Three.js centre (cx,cy,cz) to body (−cy,−cz,cx).
-  // Cancel with parent-space offset (cy·s, cz·s, −cx·s).
+  // R = I, so body offset = (cx,cy,cz); cancel with (−cx·s, −cy·s, −cz·s).
   const center = useMemo(() => {
     const c = new Vector3()
     new Box3().setFromObject(clone).getCenter(c)
@@ -33,9 +30,9 @@ function C182Model({ scale }: { scale: number }) {
       scale={glbScale}
       rotation={C182_ROT}
       position={[
-         center.y * glbScale,
-         center.z * glbScale,
         -center.x * glbScale,
+        -center.y * glbScale,
+        -center.z * glbScale,
       ]}
     />
   )
